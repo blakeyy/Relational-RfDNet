@@ -1,5 +1,4 @@
 #ignore folders
-
 datasets/scannet/processed_data/
 datasets/ShapeNetv2_data/point
 datasets/ShapeNetv2_data/pointcloud
@@ -8,3 +7,9 @@ datasets/ShapeNetv2_data/watertight_scaled_simplified
 out/iscnet/
 out/pretrained_models/
 runs/
+temp/
+build/
+
+#ignore files
+*.pyc
+*.log

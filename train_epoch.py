@@ -71,7 +71,7 @@ def train(cfg, trainer, scheduler, bnm_scheduler, checkpoint, train_loader, val_
         cfg.log_string('-' * 100)
         cfg.log_string('Epoch (%d/%s):' % (epoch + 1, total_epochs))
         trainer.show_lr()
-        bnm_scheduler.show_momentum()
+        #bnm_scheduler.show_momentum()
         start = time()
         eval_loss_recorder = train_epoch(cfg, epoch + 1, trainer, dataloaders)
         eval_loss = trainer.eval_loss_parser(eval_loss_recorder)

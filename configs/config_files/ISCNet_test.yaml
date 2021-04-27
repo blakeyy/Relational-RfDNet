@@ -1,12 +1,12 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/pretrained_models/pretrained_weight.pth']
+weight: ['out/iscnet/2021-04-27T19:17:07.221054_1full/model_best.pth']
 seed: 10
 device:
   use_gpu: True
   gpu_ids: '0'
-  num_workers: 0
+  num_workers: 4
 data:
   dataset: scannet
   split: datasets/splits/fullscan

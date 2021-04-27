@@ -1,12 +1,12 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-03-28T15:52:57.350715/model_best.pth']
+weight: ['out/iscnet/2021-04-27T14:17:32.507850/model_best.pth']
 seed: 10
 device:
   use_gpu: True
-  gpu_ids: '0,1'
-  num_workers: 8
+  gpu_ids: '0' #'0,1'
+  num_workers: 4 #8
 data:
   dataset: scannet
   split: datasets/splits/fullscan
@@ -61,13 +61,13 @@ bnscheduler:
   bn_momentum_init: 0.5
   bn_momentum_max: 0.001
 train:
-  epochs: 240
+  epochs: 30 #240
   phase: 'completion'
   freeze: ['backbone', 'voting', 'detection']
-  batch_size: 8
+  batch_size: 2
 val:
   phase: 'completion'
-  batch_size: 8
+  batch_size: 2
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]

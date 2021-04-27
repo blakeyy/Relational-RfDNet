@@ -5,8 +5,8 @@ weight: []
 seed: 10
 device:
   use_gpu: True
-  gpu_ids: '0,1'
-  num_workers: 8
+  gpu_ids: '0' #'0,1'
+  num_workers: 4 #8
 data:
   dataset: scannet
   split: datasets/splits/fullscan
