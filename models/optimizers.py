@@ -2,10 +2,7 @@
 # author: ynie
 # date: Feb, 2020
 import torch
-from external.pointnet2.pytorch_utils import BNMomentumScheduler
-### Ingo
-#from external.pointnet2.models.pointnet2_ssg_cls import BNMomentumScheduler
-###
+from external.pointnet2_ops_lib.pointnet2_ops.pytorch_utils import BNMomentumScheduler
 
 def has_optim_in_children(subnet):
     '''
@@ -59,8 +56,7 @@ def load_scheduler(config, optimizer):
 def load_bnm_scheduler(cfg, net, start_epoch):
     bn_lbmd = lambda it: max(cfg.config['bnscheduler']['bn_momentum_init'] * cfg.config['bnscheduler']['bn_decay_rate'] ** (
         int(it / cfg.config['bnscheduler']['bn_decay_step'])), cfg.config['bnscheduler']['bn_momentum_max'])
-    #bnm_scheduler = BNMomentumScheduler(cfg, net, bn_lambda=bn_lbmd, last_epoch=start_epoch - 1)
-    bnm_scheduler = BNMomentumScheduler(net, bn_lambda=bn_lbmd, last_epoch=start_epoch - 1)
+    bnm_scheduler = BNMomentumScheduler(cfg, net, bn_lambda=bn_lbmd, last_epoch=start_epoch - 1)
     return bnm_scheduler
 
 def load_optimizer(config, net):
