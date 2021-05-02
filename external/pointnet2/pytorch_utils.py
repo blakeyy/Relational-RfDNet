@@ -271,7 +271,7 @@ def set_bn_momentum_default(bn_momentum):
 class BNMomentumScheduler(object):
 
     def __init__(
-            self, model, bn_lambda, last_epoch=-1,
+            self, cfg, model, bn_lambda, last_epoch=-1,
             setter=set_bn_momentum_default
     ):
         if not isinstance(model, nn.Module):
@@ -280,7 +280,7 @@ class BNMomentumScheduler(object):
                     type(model).__name__
                 )
             )
-
+        self.cfg = cfg
         self.model = model
         self.setter = setter
         self.lmbd = bn_lambda
@@ -294,5 +294,8 @@ class BNMomentumScheduler(object):
 
         self.last_epoch = epoch
         self.model.apply(self.setter(self.lmbd(epoch)))
+
+    def show_momentum(self):
+        self.cfg.log_string('Current BN decay momentum :%f.' % (self.lmbd(self.last_epoch)))
 
 

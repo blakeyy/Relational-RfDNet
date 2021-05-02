@@ -14,13 +14,10 @@ from __future__ import (
 import torch
 from torch.autograd import Function
 import torch.nn as nn
-import pytorch_utils as pt_utils
+from external.pointnet2 import pytorch_utils as pt_utils
 import sys
 
-try:
-    import builtins
-except:
-    import __builtin__ as builtins
+import builtins
 
 try:
     import pointnet2._ext as _ext
@@ -388,6 +385,7 @@ class GroupAll(nn.Module):
         # type: (GroupAll, bool) -> None
         super(GroupAll, self).__init__()
         self.use_xyz = use_xyz
+        self.ret_grouped_xyz = ret_grouped_xyz
 
     def forward(self, xyz, new_xyz, features=None):
         # type: (GroupAll, torch.Tensor, torch.Tensor, torch.Tensor) -> Tuple[torch.Tensor]
