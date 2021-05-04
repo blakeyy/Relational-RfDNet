@@ -12,6 +12,9 @@ build/
 
 #ignore files
 *.pyc
+*.ply
+*.png
+*.npz
 
 # Compiled source #
 ###################
