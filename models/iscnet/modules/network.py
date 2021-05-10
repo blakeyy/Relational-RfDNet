@@ -13,6 +13,7 @@ from net_utils.libs import flip_axis_to_depth, extract_pc_in_box3d, flip_axis_to
 from torch import optim
 from models.loss import chamfer_func
 from net_utils.box_util import get_3d_box
+from net_utils.relation_tool import PositionalEmbedding
 
 @METHODS.register_module
 class ISCNet(BaseNetwork):
@@ -27,6 +28,8 @@ class ISCNet(BaseNetwork):
         phase_names = []
         if cfg.config[cfg.config['mode']]['phase'] in ['detection']:
             phase_names += ['backbone', 'voting', 'detection']
+            if cfg.config[cfg.config['mode']]['use_relation']: 
+                phase_names += ['enhance_recognnition']
         if cfg.config[cfg.config['mode']]['phase'] in ['completion']:
             phase_names += ['backbone', 'voting', 'detection', 'completion']
             if cfg.config['data']['skip_propagate']:
@@ -325,8 +328,32 @@ class ISCNet(BaseNetwork):
         end_points['vote_xyz'] = xyz
         end_points['vote_features'] = features
         # --------- DETECTION ---------
-        if_proposal_feature = self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion'
+        if_proposal_feature = self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion' or self.cfg.config[self.cfg.config['mode']]['use_relation']
         end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
+        #####################################################################
+        center = end_points['center'] # (B, num_proposal, 3)
+        size_scores = end_points['size_scores'] # (B, num_proposal, num_size_cluster)
+        size_residuals_normalized = end_points['size_residuals_normalized']# (B, num_proposal, num_size_cluster, 3)
+        
+        # choose the cluster that has largest score as geometric feature 
+        index = torch.argmax(size_scores, dim = 2, keepdim = True)
+        size_label_one_hot = torch.cuda.FloatTensor(size_scores.shape).zero_()
+        size_label_one_hot.scatter_(2,index,1)
+        size_label_one_hot_tiled = size_label_one_hot.unsqueeze(-1).repeat(1,1,1,3)#(B, num_proposal, num_size_cluster, 3)
+        predicted_size_residual_normalized = torch.sum(size_residuals_normalized*size_label_one_hot_tiled, 2) # (B, num_proposal, 3)
+        # get predicted w,h,l from residual
+        # residual = (h-h')/h', h: predicted height, h': mean height of corresponding class 
+        mean_size_arr = self.cfg.dataset_config.mean_size_arr
+        mean_size_arr_expanded = torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0) # (1,1,num_size_cluster,3)
+        mean_size_label = torch.sum(size_label_one_hot_tiled * mean_size_arr_expanded, 2) # (B,num_proposal,3)
+        predicted_size = predicted_size_residual_normalized*mean_size_label + mean_size_label # (B,num_proposal,3)
+        # get geometric feature and feed it into PositionalEmbedding 
+        geometric_feature = torch.cat([center, predicted_size], dim=-1) # (B, num_proposal, 6)
+        position_embedding = PositionalEmbedding(geometric_feature)
+
+
+        proposal_features = self.enhance_recognition((proposal_features, end_points))
+        #####################################################################
 
         # --------- INSTANCE COMPLETION ---------
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':
