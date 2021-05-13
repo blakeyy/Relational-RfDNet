@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/fullscan
+  split: datasets/splits/overfit
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -38,6 +38,14 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss
+  enhance_recognition: 
+    method: RelationModule
+    loss: NULL 
+    n_relations: 8
+    appearance_feature_dim: 768
+    key_feature_dim: 96 
+    geo_feature_dim: 96
+    isDuplication: False
   skip_propagation:
     method: SkipPropagation
     loss: Null
@@ -47,7 +55,7 @@ model:
     weight: 1
 optimizer:
   method: Adam
-  lr: 1e-3
+  lr: 5e-3
   betas: [0.9, 0.999]
   eps: 1e-08
   weight_decay: 0
@@ -61,12 +69,14 @@ bnscheduler:
   bn_momentum_init: 0.5
   bn_momentum_max: 0.001
 train:
-  epochs: 240
+  epochs: 50
   phase: 'detection'
+  use_relation: True
   freeze: []
   batch_size: 8
 val:
   phase: 'detection'
+  use_relation: True
   batch_size: 8
   use_cls_nms: True
   use_3d_nms: True
@@ -82,5 +92,5 @@ log:
   vis_path: visualization
   save_results: True
   vis_step: 500
-  print_step: 10
+  print_step: 1
   path: out/iscnet
