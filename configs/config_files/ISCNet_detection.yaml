@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/overfit
+  split: datasets/splits/fullscan
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -73,7 +73,7 @@ train:
   phase: 'detection'
   use_relation: True
   freeze: []
-  batch_size: 8
+  batch_size: 4
 val:
   phase: 'detection'
   use_relation: True

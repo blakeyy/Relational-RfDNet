@@ -16,7 +16,7 @@ from models.loss import chamfer_func
 from net_utils.box_util import get_3d_box
 from net_utils.relation_tool import PositionalEmbedding
 from net_utils.nn_distance import nn_distance
-from proposal_module import decode_scores
+from models.iscnet.modules.proposal_module import decode_scores
 @METHODS.register_module
 class ISCNet(BaseNetwork):
     def __init__(self, cfg):
@@ -33,7 +33,7 @@ class ISCNet(BaseNetwork):
         if cfg.config[cfg.config['mode']]['phase'] in ['detection']:
             phase_names += ['backbone', 'voting', 'detection']
             if cfg.config[cfg.config['mode']]['use_relation']: 
-                phase_names += ['enhance_recognnition']
+                phase_names += ['enhance_recognition']
         if cfg.config[cfg.config['mode']]['phase'] in ['completion']:
             phase_names += ['backbone', 'voting', 'detection', 'completion']
             if cfg.config['data']['skip_propagate']:
