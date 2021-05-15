@@ -350,7 +350,6 @@ class ISCNet(BaseNetwork):
         if self.cfg.config[self.cfg.config['mode']]['use_relation']: 
             center = end_points['center'] # (B, K, 3)
             size_scores = end_points['size_scores'] # (B, K, num_size_cluster)
-            size_residuals_normalized = end_points['size_residuals_normalized']# (B, K, num_size_cluster, 3)
         
             # choose the cluster for each proposal based on GT class of that proposal. GT class of each proposal is the closest GT box to each predicted proposal
             aggregated_vote_xyz = end_points['aggregated_vote_xyz'] #(B,K,3)
@@ -361,17 +360,17 @@ class ISCNet(BaseNetwork):
             size_label_one_hot = torch.cuda.FloatTensor(size_scores.shape).zero_()
             size_label_one_hot.scatter_(2, size_class_label.unsqueeze(-1), 1) # src==1 so it's *one-hot* (B,K,num_size_cluster)
             size_label_one_hot_tiled = size_label_one_hot.unsqueeze(-1).repeat(1,1,1,3)#(B, K, num_size_cluster, 3)
-            predicted_size_residual_normalized = torch.sum(size_residuals_normalized*size_label_one_hot_tiled, 2) # (B, K, 3)
+            size_residual_label = torch.gather(data['size_residual_label'], 1, object_assignment.unsqueeze(-1).repeat(1,1,3)) # select (B,K,3) from (B,K2,3)
 
             # get predicted l,w,h from residual
             # residual = (h-h')/h', h: predicted height, h': mean height of corresponding class 
             mean_size_arr = self.cfg.dataset_config.mean_size_arr
             mean_size_arr_expanded = torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0) # (1,1,num_size_cluster,3)
             mean_size_label = torch.sum(size_label_one_hot_tiled * mean_size_arr_expanded, 2) # (B, K,3)
-            predicted_size = predicted_size_residual_normalized*mean_size_label + mean_size_label # (B, K,3)
+            gt_size = size_residual_label + mean_size_label # (B,K,3)
 
             # get geometric feature and feed it into PositionalEmbedding 
-            geometric_feature = torch.cat([center, predicted_size], dim=-1) # (B, K, 6)
+            geometric_feature = torch.cat([center, gt_size], dim=-1) # (B, K, 6)
             position_embedding = PositionalEmbedding(geometric_feature) # (B,K,K, dim_g)
 
             #transform proposal_features from 128-dim to appearance_feature_dim 
