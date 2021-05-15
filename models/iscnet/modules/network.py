@@ -375,13 +375,14 @@ class ISCNet(BaseNetwork):
             position_embedding = PositionalEmbedding(geometric_feature) # (B,K,K, dim_g)
 
             #transform proposal_features from 128-dim to appearance_feature_dim 
+            proposal_features = proposal_features.transpose(1, 2).contiguous()
             proposal_features = self.feature_transform1(proposal_features)
 
             # proposal_features: (B,K,appearance_feature_dim)
             # positional_embedding: (B,K,K,dim_g)
             proposal_features = self.enhance_recognition((proposal_features, position_embedding))  # proposal_features: (B,K, appearance_feature_dim)
             proposal_features = self.feature_transform2(proposal_features) # (B,K,128)
-
+            proposal_features = proposal_features.transpose(1,2).contiguous()
             net = self.proposal_generation(proposal_features) # # (B, 2+3+num_heading_bin*2+num_size_cluster*4 + num_class, K)
             end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster)
 
