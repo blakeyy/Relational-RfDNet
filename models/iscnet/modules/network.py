@@ -52,8 +52,16 @@ class ISCNet(BaseNetwork):
             optim_spec = self.load_optim_spec(cfg.config, net_spec)
             subnet = MODULES.get(method_name)(cfg, optim_spec)
             if phase_name == 'enhance_recognition': 
-                self.add_module('feature_transform1', nn.Linear(128, self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'], bias=True))
-                self.add_module('feature_transform2', nn.Linear(self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'], 128, bias=True))
+                feature_transform1 = nn.Sequential(nn.Conv1d(128,128,1), \
+                                                   nn.BatchNorm1d(128), \
+                                                   nn.ReLU(), \
+                                                   nn.Conv1d(128, self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'], 1))
+                self.add_module('feature_transform1', feature_transform1)
+                feature_transform2 = nn.Sequential(nn.Conv1d(self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'],128,1), \
+                                                   nn.BatchNorm1d(128), \
+                                                   nn.ReLU(), \
+                                                   nn.Conv1d(128, 128, 1))
+                self.add_module('feature_transform2', feature_transform2)
                 proposal_generation = nn.Sequential(nn.Conv1d(128,128,1), \
                                                     nn.BatchNorm1d(128), \
                                                     nn.ReLU(), \
@@ -374,14 +382,15 @@ class ISCNet(BaseNetwork):
             position_embedding = PositionalEmbedding(geometric_feature) # (B,K,K, dim_g)
 
             #transform proposal_features from 128-dim to appearance_feature_dim 
-            proposal_features = proposal_features.transpose(1, 2).contiguous()
-            proposal_features = self.feature_transform1(proposal_features)
+            proposal_features = self.feature_transform1(proposal_features)  #(B,appearance_feature_dim, K)
+            proposal_features = proposal_features.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)
+            
 
             # proposal_features: (B,K,appearance_feature_dim)
             # positional_embedding: (B,K,K,dim_g)
             proposal_features = self.enhance_recognition((proposal_features, position_embedding))  # proposal_features: (B,K, appearance_feature_dim)
-            proposal_features = self.feature_transform2(proposal_features) # (B,K,128)
-            proposal_features = proposal_features.transpose(1,2).contiguous()
+            proposal_features = proposal_features.transpose(1,2).contiguous() #(B,appearance_feature_dim, K)
+            proposal_features = self.feature_transform2(proposal_features) # (B,128,K)
             net = self.proposal_generation(proposal_features) # # (B, 2+3+num_heading_bin*2+num_size_cluster*4 + num_class, K)
             end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster)
 

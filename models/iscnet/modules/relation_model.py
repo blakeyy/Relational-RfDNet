@@ -8,6 +8,7 @@ class RelationModule(nn.Module):
     def __init__(self, cfg, optim_spec = None):
         super(RelationModule, self).__init__()
         self.cfg = cfg
+        self.optim_spec = optim_spec
         appearance_feature_dim = cfg.config['model']['enhance_recognition']['appearance_feature_dim']
         key_feature_dim = cfg.config['model']['enhance_recognition']['key_feature_dim']
         geo_feature_dim = cfg.config['model']['enhance_recognition']['geo_feature_dim']
