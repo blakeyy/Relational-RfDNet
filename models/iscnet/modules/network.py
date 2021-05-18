@@ -16,7 +16,7 @@ from models.loss import chamfer_func
 from net_utils.box_util import get_3d_box
 from net_utils.relation_tool import PositionalEmbedding
 from net_utils.nn_distance import nn_distance
-from models.iscnet.modules.proposal_module import decode_scores
+
 @METHODS.register_module
 class ISCNet(BaseNetwork):
     def __init__(self, cfg):
@@ -32,12 +32,12 @@ class ISCNet(BaseNetwork):
         phase_names = []
         if cfg.config[cfg.config['mode']]['phase'] in ['detection']:
             phase_names += ['backbone', 'voting', 'detection']
-            if cfg.config[cfg.config['mode']]['use_relation']: 
-                phase_names += ['enhance_recognition']
         if cfg.config[cfg.config['mode']]['phase'] in ['completion']:
             phase_names += ['backbone', 'voting', 'detection', 'completion']
             if cfg.config['data']['skip_propagate']:
                 phase_names += ['skip_propagation']
+        if cfg.config[cfg.config['mode']]['use_relation']: 
+            phase_names += ['enhance_recognition']
 
         if (not cfg.config['model']) or (not phase_names):
             cfg.log_string('No submodule found. Please check the phase name and model definition.')
@@ -51,17 +51,6 @@ class ISCNet(BaseNetwork):
             # load specific optimizer parameters
             optim_spec = self.load_optim_spec(cfg.config, net_spec)
             subnet = MODULES.get(method_name)(cfg, optim_spec)
-            if phase_name == 'enhance_recognition': 
-                self.add_module('feature_transform1', nn.Linear(128, self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'], bias=True))
-                self.add_module('feature_transform2', nn.Linear(self.cfg.config['model']['enhance_recognition']['appearance_feature_dim'], 128, bias=True))
-                proposal_generation = nn.Sequential(nn.Conv1d(128,128,1), \
-                                                    nn.BatchNorm1d(128), \
-                                                    nn.ReLU(), \
-                                                    nn.Conv1d(128,128,1), \
-                                                    nn.BatchNorm1d(128), \
-                                                    nn.ReLU(), \
-                                                    nn.Conv1d(128,5 + self.num_heading_bin*2 + self.num_size_cluster*4 + self.num_class,1))
-                self.add_module('proposal_generation', proposal_generation)
             self.add_module(phase_name, subnet)
 
             '''load corresponding loss functions'''
@@ -100,6 +89,10 @@ class ISCNet(BaseNetwork):
             if_proposal_feature = self.cfg.config[mode]['phase'] == 'completion'
             end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
 
+            #---------- RELATION MODULE----------
+            if self.cfg.config[self.cfg.config['mode']]['use_relation']: 
+                end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)  
+
             eval_dict, parsed_predictions = parse_predictions(end_points, data, self.cfg.eval_config)
             parsed_gts = parse_groundtruths(data, self.cfg.eval_config)
 
@@ -111,9 +104,9 @@ class ISCNet(BaseNetwork):
                 # use 3D NMS to generate sample ids.
                 batch_sample_ids = eval_dict['pred_mask']
                 dump_threshold = self.cfg.eval_config['conf_thresh'] if evaluate_mesh_mAP else self.cfg.config['generation']['dump_threshold']
-
-                BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, mode='random', batch_sample_ids=batch_sample_ids, DUMP_CONF_THRESH=dump_threshold)
-
+                
+                BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, mode='random', batch_sample_ids=batch_sample_ids, DUMP_CONF_THRESH=dump_threshold)    
+                
                 # Skip propagate point clouds to box centers.
                 device = end_points['center'].device
                 if not self.cfg.config['data']['skip_propagate']:
@@ -347,43 +340,8 @@ class ISCNet(BaseNetwork):
         end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
         
         #---------- RELATION MODULE----------
-        if self.cfg.config[self.cfg.config['mode']]['use_relation']: 
-            center = end_points['center'] # (B, K, 3)
-            size_scores = end_points['size_scores'] # (B, K, num_size_cluster)
-        
-            # choose the cluster for each proposal based on GT class of that proposal. GT class of each proposal is the closest GT box to each predicted proposal
-            aggregated_vote_xyz = end_points['aggregated_vote_xyz'] #(B,K,3)
-            gt_center = data['center_label'][:,:,0:3]
-            _, ind1, _, _ = nn_distance(aggregated_vote_xyz, gt_center)
-            object_assignment = ind1 # (B,K) with values in 0,1,...,K2-1
-            size_class_label = torch.gather(data['size_class_label'], 1, object_assignment) # select (B,K) from (B,K2), object_assignment: (B,K) with values in 0,1,...,K2-1
-            size_label_one_hot = torch.cuda.FloatTensor(size_scores.shape).zero_()
-            size_label_one_hot.scatter_(2, size_class_label.unsqueeze(-1), 1) # src==1 so it's *one-hot* (B,K,num_size_cluster)
-            size_label_one_hot_tiled = size_label_one_hot.unsqueeze(-1).repeat(1,1,1,3)#(B, K, num_size_cluster, 3)
-            size_residual_label = torch.gather(data['size_residual_label'], 1, object_assignment.unsqueeze(-1).repeat(1,1,3)) # select (B,K,3) from (B,K2,3)
-
-            # get predicted l,w,h from residual
-            # residual = (h-h')/h', h: predicted height, h': mean height of corresponding class 
-            mean_size_arr = self.cfg.dataset_config.mean_size_arr
-            mean_size_arr_expanded = torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0) # (1,1,num_size_cluster,3)
-            mean_size_label = torch.sum(size_label_one_hot_tiled * mean_size_arr_expanded, 2) # (B, K,3)
-            gt_size = size_residual_label + mean_size_label # (B,K,3)
-
-            # get geometric feature and feed it into PositionalEmbedding 
-            geometric_feature = torch.cat([center, gt_size], dim=-1) # (B, K, 6)
-            position_embedding = PositionalEmbedding(geometric_feature) # (B,K,K, dim_g)
-
-            #transform proposal_features from 128-dim to appearance_feature_dim 
-            proposal_features = proposal_features.transpose(1, 2).contiguous()
-            proposal_features = self.feature_transform1(proposal_features)
-
-            # proposal_features: (B,K,appearance_feature_dim)
-            # positional_embedding: (B,K,K,dim_g)
-            proposal_features = self.enhance_recognition((proposal_features, position_embedding))  # proposal_features: (B,K, appearance_feature_dim)
-            proposal_features = self.feature_transform2(proposal_features) # (B,K,128)
-            proposal_features = proposal_features.transpose(1,2).contiguous()
-            net = self.proposal_generation(proposal_features) # # (B, 2+3+num_heading_bin*2+num_size_cluster*4 + num_class, K)
-            end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster)
+        if self.cfg.config[self.cfg.config['mode']]['use_relation']:
+            end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)  
 
         # --------- INSTANCE COMPLETION ---------
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':

@@ -10,7 +10,7 @@ from configs.path_config import PathConfig, ScanNet_OBJ_CLASS_IDS
 from utils.scannet.visualization.vis_scannet import Vis_Scannet
 import random
 import pickle
-from utils.shapenet import ShapeNetv2_Watertight_Scaled_path
+from utils.shapenet import ShapeNetv2_Watertight_Scaled_Simplified_path, ShapeNetv2_Watertight_Scaled_path
 from utils.shapenet.common import Mesh
 from glob import glob
 import re
@@ -236,8 +236,11 @@ class Vis_base(Vis_Scannet):
         return min_max_dist
 
 if __name__ == '__main__':
-    vis_root = 'out/iscnet/2021-04-08T15:42:39.519971/visualization'
-    scene_name = 'scene0549_00'
+    vis_root = 'out/iscnet/2021-05-18T19:36:17.410200/visualization'
+    scene_name = 'test_0_scene0339_00'
+    
+    #vis_root = 'out/iscnet/2021-04-08T15:42:39.519971/visualization'
+    #scene_name = 'scene0549_00'
     if 'test' in scene_name:
         sample_name = scene_name
         scene_name = '_'.join(sample_name.split('_')[2:])
@@ -319,7 +322,8 @@ if __name__ == '__main__':
     class_ids = []
     for box in bboxes:
         box['box3D'][6] = np.mod(box['box3D'][6] + np.pi, 2 * np.pi) - np.pi
-        shapenet_model = os.path.join(ShapeNetv2_Watertight_Scaled_path, box['shapenet_catid'], box['shapenet_id'] + '.off')
+        # Ingo # shapenet_model = os.path.join(ShapeNetv2_Watertight_Scaled_path, box['shapenet_catid'], box['shapenet_id'] + '.off')
+        shapenet_model = os.path.join(ShapeNetv2_Watertight_Scaled_Simplified_path, box['shapenet_catid'], box['shapenet_id'] + '.off')
         assert os.path.exists(shapenet_model)
 
         obj_model = os.path.join('./temp', box['shapenet_catid'], box['shapenet_id'] + '.obj')

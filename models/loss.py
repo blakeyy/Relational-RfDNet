@@ -388,7 +388,7 @@ class BoxNetDetectionLoss(BaseLoss):
             compute_box_and_sem_cls_loss(est_data, gt_data, meta_data, dataset_config)
 
         box_loss = center_loss + 0.1 * heading_cls_loss + heading_reg_loss + 0.1 * size_cls_loss + size_reg_loss
-
+        
         # Final loss function
         loss = 0.5 * objectness_loss + box_loss + 0.1 * sem_cls_loss
         loss *= 10

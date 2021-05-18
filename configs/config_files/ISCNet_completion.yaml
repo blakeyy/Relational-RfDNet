@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-04-27T14:17:32.507850/model_best.pth']
+weight: ['out/iscnet/2021-05-18T16:27:47.621308/model_best.pth']
 seed: 10
 device:
   use_gpu: True
@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/fullscan
+  split: datasets/splits/overfit
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -37,7 +37,15 @@ model:
     loss: Null
   detection:
     method: ProposalModule
-    loss: DetectionLoss
+    loss: DetectionLoss 
+  enhance_recognition: 
+    method: RelationalProposalModule
+    loss: Null 
+    n_relations: 8
+    appearance_feature_dim: 768
+    key_feature_dim: 96 
+    geo_feature_dim: 96
+    isDuplication: False
   skip_propagation:
     method: SkipPropagation
     loss: Null
@@ -52,22 +60,25 @@ optimizer:
   eps: 1e-08
   weight_decay: 0
 scheduler:
-  patience: 20
-  factor: 0.1
+  patience: 1000
+  factor: 0.9
   threshold: 0.01
+  min_lr: 0
 bnscheduler:
   bn_decay_step: 20
   bn_decay_rate: 0.5
   bn_momentum_init: 0.5
   bn_momentum_max: 0.001
 train:
-  epochs: 30 #240
+  epochs: 1000
   phase: 'completion'
-  freeze: ['backbone', 'voting', 'detection']
-  batch_size: 2
+  use_relation: True
+  freeze: ['backbone', 'voting', 'detection', 'enhance_recognition']
+  batch_size: 1 #2
 val:
   phase: 'completion'
-  batch_size: 2
+  use_relation: True
+  batch_size: 1 #2
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]
@@ -81,6 +92,6 @@ demo:
 log:
   vis_path: visualization
   save_results: True
-  vis_step: 500
-  print_step: 10
+  vis_step: 100
+  print_step: 1 #10
   path: out/iscnet

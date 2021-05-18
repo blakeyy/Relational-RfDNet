@@ -40,6 +40,8 @@ def train_epoch(cfg, epoch, trainer, dataloaders):
 
             if ((iter + 1) % cfg.config['log']['print_step']) == 0:
                 cfg.log_string('Process: Phase: %s. Epoch %d: %d/%d. Current loss: %s.' % (phase, epoch, iter + 1, len(dataloader), str(loss)))
+                lrs = trainer.get_lr() ##Ingo
+                loss['lr'] = lrs[0]
                 log_board.update(loss, cfg.config['log']['print_step'], phase)
 
         cfg.log_string('=' * 100)

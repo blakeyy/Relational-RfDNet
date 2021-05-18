@@ -20,6 +20,14 @@ class BaseTrainer(object):
         lrs = [self.optimizer.param_groups[i]['lr'] for i in range(len(self.optimizer.param_groups))]
         self.cfg.log_string('Current learning rates are: ' + str(lrs) + '.')
 
+    def get_lr(self):
+        '''
+        return current learning rates
+        :return:
+        '''
+        lrs = [self.optimizer.param_groups[i]['lr'] for i in range(len(self.optimizer.param_groups))]
+        return lrs
+
     def train_step(self, data):
         '''
         performs a step training

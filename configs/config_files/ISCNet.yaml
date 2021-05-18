@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-04-27T17:15:32.850259_1compl/model_best.pth']
+weight: ['out/iscnet/overfit_completion/model_best.pth']
 seed: 10
 device:
   use_gpu: True
@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/fullscan
+  split: datasets/splits/overfit
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -38,6 +38,14 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss
+  enhance_recognition: 
+    method: RelationalProposalModule
+    loss: Null
+    n_relations: 8
+    appearance_feature_dim: 768
+    key_feature_dim: 96 
+    geo_feature_dim: 96
+    isDuplication: False
   skip_propagation:
     method: SkipPropagation
     loss: Null
@@ -55,6 +63,7 @@ scheduler:
   patience: 20
   factor: 0.1
   threshold: 0.01
+  min_lr: 0
 bnscheduler:
   bn_decay_step: 20
   bn_decay_rate: 0.5
@@ -63,10 +72,12 @@ bnscheduler:
 train:
   epochs: 240
   phase: 'completion'
+  use_relation: True
   freeze: []
   batch_size: 2
 val:
   phase: 'completion'
+  use_relation: True
   batch_size: 2
   use_cls_nms: True
   use_3d_nms: True
@@ -81,6 +92,6 @@ demo:
 log:
   vis_path: visualization
   save_results: True
-  vis_step: 500
-  print_step: 10
+  vis_step: 100
+  print_step: 1
   path: out/iscnet

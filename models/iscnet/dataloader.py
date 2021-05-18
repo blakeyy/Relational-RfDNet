@@ -26,11 +26,11 @@ class ISCNet_ScanNet(ScanNet):
         self.num_points = cfg.config['data']['num_point']
         self.use_color = cfg.config['data']['use_color_detection'] or cfg.config['data']['use_color_completion']
         self.use_height = not cfg.config['data']['no_height']
-        self.augment = mode == 'train'
+        self.augment = False #mode == 'train'
         self.shapenet_path = cfg.config['data']['shapenet_path']
         self.points_unpackbits = cfg.config['data']['points_unpackbits']
         self.n_points_object = cfg.config['data']['points_subsample']
-        self.points_transform = SubsamplePoints(cfg.config['data']['points_subsample'], mode)
+        self.points_transform = SubsamplePoints(cfg.config['data']['points_subsample'], 'test')#mode)
         self.phase = cfg.config[self.mode]['phase']
 
     def __getitem__(self, idx):
