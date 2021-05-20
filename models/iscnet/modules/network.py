@@ -338,7 +338,6 @@ class ISCNet(BaseNetwork):
         end_points['vote_features'] = features
         # --------- DETECTION ---------
         if_proposal_feature = self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion' or self.cfg.config[self.cfg.config['mode']]['use_relation']
-        print(if_proposal_feature)
         end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
         
         #---------- RELATION MODULE----------
