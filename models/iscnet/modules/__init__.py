@@ -6,4 +6,4 @@ from .occupancy_net import ONet
 from .skip_propagation import SkipPropagation
 from .relation_model import RelationalProposalModule #RelationModule
 
-__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationModule']
+__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationalProposalModule']

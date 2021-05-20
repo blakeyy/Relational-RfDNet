@@ -100,7 +100,6 @@ def PositionalEmbedding( f_g, dim_g=96, wave_len=1000):
     
     dim_mat = dim_mat.view(1,1, 1, 1, -1)
     position_mat = position_mat.view(size[0], size[1], size[2], 6, -1) # (B,K,K,6,1)
-    position_mat = 100. * position_mat
     mul_mat = position_mat * dim_mat 
 
     mul_mat = mul_mat.view(size[0], size[1], size[2], -1) # (B,K,K,48)
