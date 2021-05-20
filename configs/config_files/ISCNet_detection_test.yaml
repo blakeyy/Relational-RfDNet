@@ -1,0 +1,85 @@
+method: ISCNet
+resume: False
+finetune: True
+weight: ['out/iscnet/2021-05-20T12:42:30.532074_overfit_det/model_best.pth']
+seed: 10
+device:
+  use_gpu: True
+  gpu_ids: '0'
+  num_workers: 4
+data:
+  dataset: scannet
+  split: datasets/splits/overfit
+  num_point: 80000
+  num_target: 256
+  vote_factor: 1
+  cluster_sampling: seed_fps
+  ap_iou_thresh: 0.25
+  no_height: False
+  use_color_detection: False
+  use_color_completion: False
+  shapenet_path: datasets/ShapeNetv2_data
+  points_unpackbits: True
+  points_subsample: [1024, 1024]
+  hidden_dim: 512
+  c_dim: 512
+  z_dim: 32
+  threshold: 0.5
+  completion_limit_in_train: 10
+  use_cls_for_completion: False
+  skip_propagate: True
+model:
+  backbone:
+    method: Pointnet2Backbone
+    loss: Null
+  voting:
+    method: VotingModule
+    loss: Null
+  detection:
+    method: ProposalModule
+    loss: DetectionLoss
+  enhance_recognition: 
+    method: RelationalProposalModule
+    loss: Null 
+    n_relations: 8
+    appearance_feature_dim: 768
+    key_feature_dim: 96 
+    geo_feature_dim: 96
+    isDuplication: False
+  skip_propagation:
+    method: SkipPropagation
+    loss: Null
+  completion:
+    method: ONet
+    loss: ONet_Loss
+    weight: 0.005
+test:
+  phase: 'detection'
+  use_relation: True
+  batch_size: 1
+  use_cls_nms: True
+  use_3d_nms: True
+  ap_iou_thresholds: [0.5]
+  faster_eval: False
+  nms_iou: 0.25
+  use_old_type_nms: False
+  per_class_proposal: True
+  conf_thresh: 0.05
+  evaluate_mesh_mAP: False
+generation:
+  generate_mesh: False
+  resolution_0: 32
+  upsampling_steps: 0
+  use_sampling: False
+  refinement_step: 0
+  simplify_nfaces: Null
+  dump_threshold: 0.5
+  dump_results: True
+demo:
+  phase: 'detection'
+log:
+  vis_path: visualization
+  save_results: True
+  vis_step: 1
+  print_step: 1
+  path: out/iscnet

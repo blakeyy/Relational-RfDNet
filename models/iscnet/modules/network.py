@@ -86,13 +86,13 @@ class ISCNet(BaseNetwork):
             end_points['vote_xyz'] = xyz
             end_points['vote_features'] = features
             # --------- DETECTION ---------
-            if_proposal_feature = self.cfg.config[mode]['phase'] == 'completion'
+            if_proposal_feature = self.cfg.config[mode]['phase'] == 'completion' or self.cfg.config[self.cfg.config['mode']]['use_relation']
             end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
 
             #---------- RELATION MODULE----------
             if self.cfg.config[self.cfg.config['mode']]['use_relation']: 
                 end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)  
-
+                
             eval_dict, parsed_predictions = parse_predictions(end_points, data, self.cfg.eval_config)
             parsed_gts = parse_groundtruths(data, self.cfg.eval_config)
 
@@ -100,12 +100,13 @@ class ISCNet(BaseNetwork):
             evaluate_mesh_mAP = True if self.cfg.config[mode]['phase'] == 'completion' and self.cfg.config['generation'][
                 'generate_mesh'] and self.cfg.config[mode]['evaluate_mesh_mAP'] else False
 
+            # use 3D NMS to generate sample ids.
+            batch_sample_ids = eval_dict['pred_mask']
+            dump_threshold = self.cfg.eval_config['conf_thresh'] if evaluate_mesh_mAP else self.cfg.config['generation']['dump_threshold']
+            
+            BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, mode='random', batch_sample_ids=batch_sample_ids, DUMP_CONF_THRESH=dump_threshold)    
+
             if self.cfg.config[mode]['phase'] == 'completion':
-                # use 3D NMS to generate sample ids.
-                batch_sample_ids = eval_dict['pred_mask']
-                dump_threshold = self.cfg.eval_config['conf_thresh'] if evaluate_mesh_mAP else self.cfg.config['generation']['dump_threshold']
-                
-                BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, mode='random', batch_sample_ids=batch_sample_ids, DUMP_CONF_THRESH=dump_threshold)    
                 
                 # Skip propagate point clouds to box centers.
                 device = end_points['center'].device
@@ -165,7 +166,7 @@ class ISCNet(BaseNetwork):
                 else:
                     meshes = None
             else:
-                BATCH_PROPOSAL_IDs = None
+                #BATCH_PROPOSAL_IDs = None
                 completion_loss = torch.tensor(0.).to(features.device)
                 mask_loss = torch.tensor(0.).to(features.device)
                 shape_example = None
@@ -337,11 +338,19 @@ class ISCNet(BaseNetwork):
         end_points['vote_features'] = features
         # --------- DETECTION ---------
         if_proposal_feature = self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion' or self.cfg.config[self.cfg.config['mode']]['use_relation']
+        print(if_proposal_feature)
         end_points, proposal_features = self.detection(xyz, features, end_points, if_proposal_feature)
         
         #---------- RELATION MODULE----------
         if self.cfg.config[self.cfg.config['mode']]['use_relation']:
-            end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)  
+            #for key, _ in end_points.items() :
+            #    print ("Endpoint key: " + str(key))
+            #for key, _ in data.items() :
+            #    print ("Data key: " + str(key))
+            #print("Center size: " + str(end_points['center'].size()))
+            #print("Center label size: " + str(data['center_label'].size()))
+            #print("proposal_features size: " + str(proposal_features.size()))
+            end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)
 
         # --------- INSTANCE COMPLETION ---------
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':
