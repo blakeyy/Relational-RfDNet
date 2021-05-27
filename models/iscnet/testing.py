@@ -95,6 +95,7 @@ class Tester(BaseTester, Trainer):
 
         '''Predict boxes'''
         est_data = our_data[0]
+        BATCH_PROPOSAL_IDs = our_data[3][0].cpu().numpy()  ## INGO
         pred_corners_3d_upright_camera = our_data[7]['pred_corners_3d_upright_camera']
         objectness_prob = our_data[7]['obj_prob'][batch_id]
 
