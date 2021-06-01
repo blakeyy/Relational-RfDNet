@@ -28,7 +28,13 @@ def train_epoch(cfg, epoch, trainer, dataloaders):
         cfg.log_string('-'*100)
         for iter, data in enumerate(dataloader):
             if phase == 'train':
-                loss = trainer.train_step(data)
+                if cfg.config['log']['plot_gradient_epoch_step'] < 1: 
+                    plot_gradient = False
+                elif ((epoch+1) % cfg.config['log']['plot_gradient_epoch_step']) == 0 and (iter+1) == len(dataloader):
+                    plot_gradient = True
+                else: 
+                    plot_gradient = False
+                loss = trainer.train_step(data, plot_gradient, epoch)
             else:
                 loss = trainer.eval_step(data)
 

@@ -95,3 +95,4 @@ log:
   vis_step: 500
   print_step: 1 #10
   path: out/iscnet
+  plot_gradient_epoch_step: 10
