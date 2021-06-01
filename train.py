@@ -55,6 +55,7 @@ def run(cfg):
     '''Start to train'''
     cfg.log_string('Start to train.')
     cfg.log_string('Total number of parameters in {0:s}: {1:d}.'.format(cfg.config['method'], sum(p.numel() for p in net.parameters())))
+    cfg.log_string('Total number of trainable parameters in {0:s}: {1:d}.'.format(cfg.config['method'], sum(p.numel() for p in net.parameters() if p.requires_grad)))
 
     train(cfg=cfg, trainer=trainer, scheduler=scheduler, bnm_scheduler=bnm_scheduler, checkpoint=checkpoint, train_loader=train_loader, val_loader=val_loader)
 
