@@ -48,6 +48,8 @@ def train_epoch(cfg, epoch, trainer, dataloaders):
                 cfg.log_string('Process: Phase: %s. Epoch %d: %d/%d. Current loss: %s.' % (phase, epoch, iter + 1, len(dataloader), str(loss)))
                 lrs = trainer.get_lr() ##Ingo
                 loss['lr'] = lrs[0]
+                if cfg.config['model']['detection']['use_attention']:
+                    loss['skip_parameter'] = trainer.net.module.detection.attention.gamma
                 log_board.update(loss, cfg.config['log']['print_step'], phase)
 
         cfg.log_string('=' * 100)

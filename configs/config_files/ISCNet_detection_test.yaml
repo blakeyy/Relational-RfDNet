@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-05-20T12:42:30.532074_overfit_det/model_best.pth']
+weight: ['out/iscnet/2021-06-14T17:17:58.945856/model_best.pth']
 seed: 10
 device:
   use_gpu: True
@@ -9,7 +9,7 @@ device:
   num_workers: 4
 data:
   dataset: scannet
-  split: datasets/splits/overfit
+  split: datasets/splits/fullscan
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -38,6 +38,7 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss
+    use_attention: True
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null 
@@ -55,11 +56,11 @@ model:
     weight: 0.005
 test:
   phase: 'detection'
-  use_relation: True
+  use_relation: False
   batch_size: 1
   use_cls_nms: True
   use_3d_nms: True
-  ap_iou_thresholds: [0.5]
+  ap_iou_thresholds: [0.25, 0.5]
   faster_eval: False
   nms_iou: 0.25
   use_old_type_nms: False

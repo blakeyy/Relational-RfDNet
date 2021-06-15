@@ -4,6 +4,7 @@ from .proposal_module import ProposalModule
 from .vote_module import VotingModule
 from .occupancy_net import ONet
 from .skip_propagation import SkipPropagation
-from .relation_model import RelationalProposalModule #RelationModule
+from .relation_model import RelationalProposalModule 
+from .self_attention import SelfAttention
 
-__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationalProposalModule']
+__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationalProposalModule', 'SelfAttention']

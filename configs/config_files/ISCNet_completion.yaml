@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-05-18T16:27:47.621308/model_best.pth']
+weight: ['out/iscnet/2021-06-15T00:05:57.026267/model_best.pth']
 seed: 10
 device:
   use_gpu: True
@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/overfit
+  split: datasets/splits/fullscan
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -38,6 +38,7 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss 
+    use_attention: True
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null 
@@ -60,8 +61,8 @@ optimizer:
   eps: 1e-08
   weight_decay: 0
 scheduler:
-  patience: 1000
-  factor: 0.9
+  patience: 20
+  factor: 0.3
   threshold: 0.01
   min_lr: 0
 bnscheduler:
@@ -70,15 +71,15 @@ bnscheduler:
   bn_momentum_init: 0.5
   bn_momentum_max: 0.001
 train:
-  epochs: 1000
+  epochs: 400
   phase: 'completion'
-  use_relation: True
-  freeze: ['backbone', 'voting', 'detection', 'enhance_recognition']
-  batch_size: 1 #2
+  use_relation: False
+  freeze: ['backbone', 'voting', 'detection'] #, 'enhance_recognition']
+  batch_size: 2
 val:
   phase: 'completion'
-  use_relation: True
-  batch_size: 1 #2
+  use_relation: False
+  batch_size: 2
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]
@@ -92,7 +93,7 @@ demo:
 log:
   vis_path: visualization
   save_results: True
-  vis_step: 100
-  print_step: 1 #10
+  vis_step: 500
+  print_step: 10
   path: out/iscnet
   plot_gradient_epoch_step: 10

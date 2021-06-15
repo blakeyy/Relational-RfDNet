@@ -9,7 +9,7 @@ device:
   num_workers: 4 #8
 data:
   dataset: scannet
-  split: datasets/splits/overfit #fullscan
+  split: datasets/splits/fullscan
   num_point: 80000
   num_target: 256
   vote_factor: 1
@@ -38,6 +38,7 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss
+    use_attention: True
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null
@@ -72,13 +73,13 @@ bnscheduler:
 train:
   epochs: 2000
   phase: 'detection'
-  use_relation: True
+  use_relation: False
   freeze: []
-  batch_size: 1 #8
+  batch_size: 8
 val:
   phase: 'detection'
-  use_relation: True
-  batch_size: 1 #8
+  use_relation: False
+  batch_size: 8
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]
@@ -93,6 +94,6 @@ log:
   vis_path: visualization
   save_results: True
   vis_step: 500
-  print_step: 1 #10
+  print_step: 10
   path: out/iscnet
   plot_gradient_epoch_step: 10

@@ -15,18 +15,22 @@ def decode_scores(net, end_points, num_heading_bin, num_size_cluster):
     batch_size = net_transposed.shape[0]
     num_proposal = net_transposed.shape[1]
 
+    # objectness
     objectness_scores = net_transposed[:, :, 0:2]
     end_points['objectness_scores'] = objectness_scores
 
+    # center
     base_xyz = end_points['aggregated_vote_xyz']  # (batch_size, num_proposal, 3)
     center = base_xyz + net_transposed[:, :, 2:5]  # (batch_size, num_proposal, 3)
     end_points['center'] = center
 
+    # heading
     heading_scores = net_transposed[:, :, 5:5 + num_heading_bin]
     heading_residuals_normalized = net_transposed[:, :, 5 + num_heading_bin:5 + num_heading_bin * 2]
     end_points['heading_scores'] = heading_scores  # Bxnum_proposalxnum_heading_bin
     end_points['heading_residuals_normalized'] = heading_residuals_normalized  # Bxnum_proposalxnum_heading_bin (should be -1 to 1)
 
+    # size
     size_scores = net_transposed[:, :, 5 + num_heading_bin * 2:5 + num_heading_bin * 2 + num_size_cluster]
     size_residuals_normalized = net_transposed[:, :,
                                 5 + num_heading_bin * 2 + num_size_cluster:5 + num_heading_bin * 2 + num_size_cluster * 4].view(
@@ -72,6 +76,10 @@ class ProposalModule(nn.Module):
                 normalize_xyz=True
             )
 
+        # Attention Module
+        if cfg.config['model']['detection']['use_attention']:
+            self.attention = MODULES.get('SelfAttention')(cfg, optim_spec)
+
         # Object proposal/detection
         # Objectness scores (2), center residual (3),
         # heading class+residual (num_heading_bin*2), size class+residual(num_size_cluster*4)
@@ -111,6 +119,10 @@ class ProposalModule(nn.Module):
         end_points['aggregated_vote_xyz'] = xyz # (batch_size, num_proposal, 3)
         end_points['aggregated_vote_inds'] = sample_inds # (batch_size, num_proposal,) # should be 0,1,2,...,num_proposal
 
+        # --------- SELF-ATTENTION MODULE ---------
+        if self.cfg.config['model']['detection']['use_attention']:
+            features = self.attention(features)
+
         # --------- PROPOSAL GENERATION ---------
         net = F.relu(self.bn1(self.conv1(features)))
         net = F.relu(self.bn2(self.conv2(net)))
@@ -122,3 +134,53 @@ class ProposalModule(nn.Module):
             return end_points, features
         else:
             return end_points, None
+
+
+def hw_flatten(x):
+    # Input shape x: [BATCH, HEIGHT, WIDTH, CHANNELS]
+    # flat the feature volume across the width and height dimensions 
+    x_shape = x.shape
+    return torch.reshape(x, [x_shape[0], -1, x_shape[-1]]) # return [BATCH, W*H, CHANNELS]
+    
+class SelfAttention(nn.Module):
+    def __init__(self, cfg, optim_spec=None):
+        super(SelfAttention, self).__init__()
+        '''Optimizer parameters used in training'''
+        self.optim_spec = optim_spec
+        self.cfg = cfg
+        
+        '''Parameters'''
+        dim = 128
+        layer = dim//4
+
+        '''Modules'''
+        self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
+        nn.init.constant_(self.gamma, 0.3)
+
+        self.F = torch.nn.Conv2d(dim,layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.G = torch.nn.Conv2d(dim,layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.H = torch.nn.Conv2d(dim, dim, kernel_size=1, padding=0, stride=1, bias=False)
+    
+    def forward(self, inputs):
+        inputs = inputs.unsqueeze(-1)
+        f = self.F(inputs)
+        g = self.G(inputs)
+        h = self.H(inputs)
+
+        f = f.transpose(dim0=1,dim1=3)
+        g = g.transpose(dim0=1,dim1=3)
+        h = h.transpose(dim0=1,dim1=3)
+
+        g_ = hw_flatten(g)
+        f_ = hw_flatten(f)
+        s = torch.matmul(g_, f_.transpose(dim0=1,dim1=2))  # # [bs, N, N]
+
+        beta = F.softmax(s, dim=-1)  # attention map
+
+        o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
+        
+        inputs = torch.squeeze(inputs, dim=-1)
+        o = torch.reshape(o, shape=inputs.shape)  # [bs, h, w, C]
+        x = self.gamma * o + inputs
+        
+        return x

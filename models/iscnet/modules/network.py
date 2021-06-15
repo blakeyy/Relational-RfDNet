@@ -96,7 +96,6 @@ class ISCNet(BaseNetwork):
             eval_dict, parsed_predictions = parse_predictions(end_points, data, self.cfg.eval_config)
             parsed_gts = parse_groundtruths(data, self.cfg.eval_config)
 
-            # --------- INSTANCE COMPLETION ---------
             evaluate_mesh_mAP = True if self.cfg.config[mode]['phase'] == 'completion' and self.cfg.config['generation'][
                 'generate_mesh'] and self.cfg.config[mode]['evaluate_mesh_mAP'] else False
 
@@ -106,6 +105,7 @@ class ISCNet(BaseNetwork):
             
             BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, mode='random', batch_sample_ids=batch_sample_ids, DUMP_CONF_THRESH=dump_threshold)    
 
+            # --------- INSTANCE COMPLETION ---------
             if self.cfg.config[mode]['phase'] == 'completion':
                 
                 # Skip propagate point clouds to box centers.
@@ -342,13 +342,6 @@ class ISCNet(BaseNetwork):
         
         #---------- RELATION MODULE----------
         if self.cfg.config[self.cfg.config['mode']]['use_relation']:
-            #for key, _ in end_points.items() :
-            #    print ("Endpoint key: " + str(key))
-            #for key, _ in data.items() :
-            #    print ("Data key: " + str(key))
-            #print("Center size: " + str(end_points['center'].size()))
-            #print("Center label size: " + str(data['center_label'].size()))
-            #print("proposal_features size: " + str(proposal_features.size()))
             end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)
 
         # --------- INSTANCE COMPLETION ---------
