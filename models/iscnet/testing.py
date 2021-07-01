@@ -78,7 +78,12 @@ class Tester(BaseTester, Trainer):
         if not os.path.exists(dump_dir):
             os.mkdir(dump_dir)
 
-        DUMP_CONF_THRESH = self.cfg.config['generation']['dump_threshold'] # Dump boxes with obj prob larger than that.
+        #DUMP_CONF_THRESH = self.cfg.config['generation']['dump_threshold'] # Dump boxes with obj prob larger than that.
+        mode = self.cfg.config['mode']
+        evaluate_mesh_mAP = True if self.cfg.config[mode]['phase'] == 'completion' and self.cfg.config['generation'][
+                'generate_mesh'] and self.cfg.config[mode]['evaluate_mesh_mAP'] else False
+        DUMP_CONF_THRESH = self.cfg.eval_config['conf_thresh'] if evaluate_mesh_mAP else self.cfg.config['generation']['dump_threshold'] # Dump boxes with obj prob larger than that.
+        
         batch_id = 0
 
         '''Predict meshes'''
