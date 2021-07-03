@@ -43,9 +43,9 @@ model:
     method: RelationalProposalModule
     loss: Null
     n_relations: 1
-    appearance_feature_dim: 128
-    key_feature_dim: 32
-    geo_feature_dim: 128
+    appearance_feature_dim: 96
+    key_feature_dim: 96
+    geo_feature_dim: 96
     isDuplication: False
   skip_propagation:
     method: SkipPropagation

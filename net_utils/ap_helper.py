@@ -146,23 +146,24 @@ def parse_predictions(est_data, gt_data, config_dict):
             where j = 0, ..., num of valid detections - 1 from sample input i
     """
     eval_dict = {}
-
-    pred_center = est_data['center']  # B,num_proposal,3
-    pred_heading_class = torch.argmax(est_data['heading_scores'], -1)  # B,num_proposal
-    heading_residuals = est_data['heading_residuals_normalized'] * (
+    #for k in est_data: #### INGO
+    #    print(k)
+    pred_center = est_data['last_center']  # B,num_proposal,3
+    pred_heading_class = torch.argmax(est_data['last_heading_scores'], -1)  # B,num_proposal
+    heading_residuals = est_data['last_heading_residuals_normalized'] * (
                 np.pi / config_dict['dataset_config'].num_heading_bin)  # Bxnum_proposalxnum_heading_bin
     pred_heading_residual = torch.gather(heading_residuals, 2,
                                          pred_heading_class.unsqueeze(-1))  # B,num_proposal,1
     pred_heading_residual.squeeze_(2)
-    pred_size_class = torch.argmax(est_data['size_scores'], -1)  # B,num_proposal
-    size_residuals = est_data['size_residuals_normalized'] * torch.from_numpy(
+    pred_size_class = torch.argmax(est_data['last_size_scores'], -1)  # B,num_proposal
+    size_residuals = est_data['last_size_residuals_normalized'] * torch.from_numpy(
         config_dict['dataset_config'].mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0)
     pred_size_residual = torch.gather(size_residuals, 2,
                                       pred_size_class.unsqueeze(-1).unsqueeze(-1).repeat(1, 1, 1,
                                                                                          3))  # B,num_proposal,1,3
     pred_size_residual.squeeze_(2)
-    pred_sem_cls = torch.argmax(est_data['sem_cls_scores'], -1)  # B,num_proposal
-    sem_cls_probs = softmax(est_data['sem_cls_scores'].detach().cpu().numpy())  # B,num_proposal,10
+    pred_sem_cls = torch.argmax(est_data['last_sem_cls_scores'], -1)  # B,num_proposal
+    sem_cls_probs = softmax(est_data['last_sem_cls_scores'].detach().cpu().numpy())  # B,num_proposal,10
     pred_sem_cls_prob = np.max(sem_cls_probs, -1)  # B,num_proposal
 
     num_proposal = pred_center.shape[1]
@@ -197,7 +198,7 @@ def parse_predictions(est_data, gt_data, config_dict):
                     nonempty_box_mask[i, j] = 0
         # -------------------------------------
 
-    obj_logits = est_data['objectness_scores'].detach().cpu().numpy()
+    obj_logits = est_data['last_objectness_scores'].detach().cpu().numpy()
     obj_prob = softmax(obj_logits)[:, :, 1]  # (B,K)
     if not config_dict['use_3d_nms']:
         # ---------- NMS input: pred_with_prob in (B,K,7) -----------

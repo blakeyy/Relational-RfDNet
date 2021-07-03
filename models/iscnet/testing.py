@@ -168,8 +168,21 @@ class Tester(BaseTester, Trainer):
         if inference_switch:
             return
 
-        objectness_loss, objectness_label, objectness_mask, object_assignment = \
-            compute_objectness_loss(est_data, gt_data)
+        #prefixes = ['proposal_'] + ['last_']
+        prefixes = ['last_']
+
+        objectness_loss_sum = 0.0
+        box_loss_sum = 0.0
+        sem_cls_loss_sum = 0.0
+
+        for prefix in prefixes:
+            objectness_loss, objectness_label, objectness_mask, object_assignment = \
+                compute_objectness_loss(est_data, gt_data, prefix)
+
+            objectness_loss_sum += objectness_loss
+            
+        #objectness_loss = 1 / 2 * objectness_loss_sum         
+        objectness_loss = objectness_loss_sum         
 
         # LABELS
         gt_center = gt_data['center_label'].cpu().numpy()  # (B,MAX_NUM_OBJ,3)

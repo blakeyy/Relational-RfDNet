@@ -40,18 +40,17 @@ class RelationalProposalModule(nn.Module):
         self.dim_g = geo_feature_dim
 
         '''Modules'''
-        #self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
-        #nn.init.constant_(self.gamma, 0.0)
+        #self.skip_parameter = SkipParameter()
+        self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
+        nn.init.constant_(self.gamma, 0.0)
 
-        #self.feature_transform1 = nn.Sequential(nn.Conv1d(128,128,1), \
-        #                                    nn.BatchNorm1d(128), \
-        #                                    nn.ReLU(), \
-        #                                    nn.Conv1d(128,128,1), \
-        #                                    nn.BatchNorm1d(128), \
-        #                                    nn.ReLU(), \
-        #                                    nn.Conv1d(128, appearance_feature_dim, 1)) 
-
-        self.pos_embedding = PositionEmbeddingLearned(6, geo_feature_dim)
+        self.feature_transform1 = nn.Sequential(nn.Conv1d(128,128,1), \
+                                            nn.BatchNorm1d(128), \
+                                            nn.ReLU(), \
+                                            nn.Conv1d(128,128,1), \
+                                            nn.BatchNorm1d(128), \
+                                            nn.ReLU(), \
+                                            nn.Conv1d(128, appearance_feature_dim, 1)) 
 
         self.relation = nn.ModuleList()
         for N in range(self.Nr):
@@ -62,15 +61,15 @@ class RelationalProposalModule(nn.Module):
                                             nn.BatchNorm1d(128), \
                                             nn.ReLU(), \
                                             nn.Conv1d(128, 128, 1))
-
         self.proposal_generation = nn.Sequential(nn.Conv1d(128,128,1), \
                                             nn.BatchNorm1d(128), \
                                             nn.ReLU(), \
                                             nn.Conv1d(128,128,1), \
                                             nn.BatchNorm1d(128), \
                                             nn.ReLU(), \
-                                            nn.Conv1d(128,5 + self.num_heading_bin*2 + self.num_size_cluster*4 + self.num_class,1))
-        
+                                            nn.Conv1d(128, 5 + self.num_heading_bin*2 + self.num_size_cluster*4 + self.num_class, 1))
+        #####
+
         ##### Concat concat to f_a
         #self.feature_transform2 = nn.Sequential(nn.Conv1d(appearance_feature_dim + self.dim_g*self.Nr, 128, 1), \
         #                                    nn.BatchNorm1d(128), \
@@ -126,8 +125,8 @@ class RelationalProposalModule(nn.Module):
         #self.proposal_generation.apply(init_weights)
 
     def forward(self, proposal_features, end_points, data, mode='train'):
-        center = end_points['center'] # (B, K, 3)
-        #size_scores = end_points['proposal_size_scores'] # (B, K, num_size_cluster)
+        center = end_points['proposal_center'] # (B, K, 3)
+        size_scores = end_points['proposal_size_scores'] # (B, K, num_size_cluster)
 
         ### Heading not used yet
         #heading_scores = end_points['proposal_heading_scores']  # Bxnum_proposalxnum_heading_bin
@@ -138,8 +137,8 @@ class RelationalProposalModule(nn.Module):
         #######
         config_dict = self.cfg.eval_config
 
-        pred_size_class = torch.argmax(end_points['size_scores'], -1)  # B,num_proposal
-        size_residuals = end_points['size_residuals_normalized'] * torch.from_numpy(
+        pred_size_class = torch.argmax(end_points['proposal_size_scores'], -1)  # B,num_proposal
+        size_residuals = end_points['proposal_size_residuals_normalized'] * torch.from_numpy(
             config_dict['dataset_config'].mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0)
         
         pred_size_residual = torch.gather(size_residuals, 2,
@@ -203,15 +202,13 @@ class RelationalProposalModule(nn.Module):
         # get geometric feature and feed it into PositionalEmbedding          ### TODO: Only use GT during train mode 
         geometric_feature = torch.cat([center, box_size], dim=-1) # (B, K, 6)  ### Ingo: Is the heading direction inlcuded here? ###
         #geometric_feature = torch.cat([center, gt_size], dim=-1) # (B, K, 6)  ### Ingo: Is the heading direction inlcuded here? ###
-        #position_embedding = PositionalEmbedding(geometric_feature, dim_g=self.dim_g) # (B,K,K, dim_g)
-        position_embedding = self.pos_embedding(geometric_feature) # (B,K,K, dim_g)
+        position_embedding = PositionalEmbedding(geometric_feature, dim_g=self.dim_g) # (B,K,K, dim_g)
 
         #position_embedding = self.feature_transform_pos(proposal_features)  #(B,appearance_feature_dim, K)
         #position_embedding = position_embedding.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)
         #transform proposal_features from 128-dim to appearance_feature_dim 
-        #proposal_features = self.feature_transform1(proposal_features)  #(B,appearance_feature_dim, K)
-        #proposal_features = proposal_features.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)
-        #position_embedding = position_embedding.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)
+        proposal_features = self.feature_transform1(proposal_features)  #(B,appearance_feature_dim, K)
+        proposal_features = proposal_features.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)
         
         # proposal_features: (B,K,appearance_feature_dim)
         # positional_embedding: (B,K,K,dim_g)
@@ -228,12 +225,15 @@ class RelationalProposalModule(nn.Module):
                     concat = self.relation[N](embedding_f_a,position_embedding)  #(B,K,dim_k)
                 else:
                     concat = self.relation[N](f_a,position_embedding)
+                    #print("concat: " + str(concat))
                 isFirst=False
             else:
                 if(self.isDuplication):
                     concat = torch.cat((concat, self.relation[N](embedding_f_a, position_embedding)), -1)
                 else:
                     concat = torch.cat((concat, self.relation[N](f_a, position_embedding)), -1)
+                    #print("concat: " + str(concat))
+            #print("Concat: (" +str(N)+ ") " + str(concat.shape))
             
             # Transformer Decoder Layer
             #query = self.decoder[i](query, key, query_pos, key_pos)
@@ -248,16 +248,15 @@ class RelationalProposalModule(nn.Module):
             #base_size = base_size.detach().clone()
 
         ### TODO: Add learning parameter to let the network decide during training if relation module is used ####
-        #proposal_features = self.gamma * concat + f_a      # proposal_features: (B,K, appearance_feature_dim)
-        proposal_features = concat
+        proposal_features = self.gamma * concat + f_a      # proposal_features: (B,K, appearance_feature_dim)
         #proposal_features = f_a + concat
         #proposal_features = torch.cat((f_a, concat), -1)
         
-        #proposal_features = proposal_features.transpose(1,2).contiguous() #(B,appearance_feature_dim, K)
+        proposal_features = proposal_features.transpose(1,2).contiguous() #(B,appearance_feature_dim, K)
         proposal_features = self.feature_transform2(proposal_features) # (B,128,K)
 
         net = self.proposal_generation(proposal_features) # # (B, 2+3+num_heading_bin*2+num_size_cluster*4 + num_class, K)
-        end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster)
+        end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster, prefix='last_')
         
         return end_points, proposal_features
 
@@ -285,88 +284,66 @@ class RelationalProposalModule(nn.Module):
             if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
                 m.momentum = self.bn_momentum
 
-def hw_flatten(x):
-    # Input shape x: [BATCH, HEIGHT, WIDTH, CHANNELS]
-    # flat the feature volume across the width and height dimensions 
-    x_shape = x.shape
-    return torch.reshape(x, [x_shape[0], -1, x_shape[-1]]) # return [BATCH, W*H, CHANNELS]
-
 class RelationUnit(nn.Module):
     def __init__(self, appearance_feature_dim=768,key_feature_dim = 96, geo_feature_dim = 96):
         super(RelationUnit, self).__init__()
         self.dim_g = geo_feature_dim
         self.dim_k = key_feature_dim
         #print(geo_feature_dim)
-        #self.WG = nn.Linear(geo_feature_dim, 1, bias=True)
-        #self.WK = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
-        #self.WQ = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
-        #self.WV = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
-
-        '''Parameters'''
-        #dim = 256
-        #layer = dim//4
-
-        '''Modules'''
-        #self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
-        #nn.init.constant_(self.gamma, 0.0)
-
-        self.K = torch.nn.Conv2d(appearance_feature_dim, key_feature_dim, kernel_size=1, padding=0, stride=1, bias=False)
-        self.Q = torch.nn.Conv2d(appearance_feature_dim, key_feature_dim, kernel_size=1, padding=0, stride=1, bias=False)
-        self.V = torch.nn.Conv2d(appearance_feature_dim, appearance_feature_dim, kernel_size=1, padding=0, stride=1, bias=False)
-
-        
-        self.norm = nn.LayerNorm(appearance_feature_dim)
-        self.dropout = nn.Dropout(0.1)
+        self.WG = nn.Linear(geo_feature_dim, 1, bias=True)
+        self.WK = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
+        self.WQ = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
+        self.WV = nn.Linear(appearance_feature_dim, key_feature_dim, bias=True)
+        self.relu = nn.ReLU(inplace=True)
 
 
     def forward(self, f_a, position_embedding):#f_a: (B,K,appearance_feature_dim), position_embedding: (B,K,K,dim_g)
+        B,K,_ = f_a.size()
+
+        w_g = self.relu(self.WG(position_embedding)) # (B,K,K,1)
+
+        w_k = self.WK(f_a) # (B,K,dim_k)
+        w_k = w_k.view(B,K,1,self.dim_k)
+
+        w_q = self.WQ(f_a) # (B,K,dim_k)
+        w_q = w_q.view(B,1,K,self.dim_k)
+
+        scaled_dot = torch.sum((w_k*w_q),-1 ) # (B,K,K). Note that 1st K is key, 2nd K is query 
+        scaled_dot = scaled_dot / np.sqrt(self.dim_k)
+
+        w_g = w_g.view(B,K,K) # Note that 1st K is key, 2nd K is query 
+        w_a = scaled_dot.view(B,K,K) 
+        #print("w_g: " + str(w_g))
+        #print("w_a: " + str(w_a))
         
-        f_a = f_a + position_embedding
-
-        f_a = f_a.unsqueeze(-1)
-
-        k = self.K(f_a)
-        q = self.Q(f_a)
-        v = self.V(f_a)
-
-        k = k.transpose(dim0=1,dim1=3)
-        q = q.transpose(dim0=1,dim1=3)
-        v = v.transpose(dim0=1,dim1=3)
-
-        s = torch.matmul(hw_flatten(q), hw_flatten(k).transpose(dim0=1,dim1=2))  # # [bs, N, N]
-
-        beta = F.softmax(s, dim=-1)  # attention map
-
-        o = torch.matmul(beta, hw_flatten(v))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
+        w_mn = torch.log(torch.clamp(w_g, min = 1e-6)) + w_a # (B,K,K)
         
-        f_a = torch.squeeze(f_a, dim=-1)
-        o = torch.reshape(o, shape=f_a.shape)  # [bs, h, w, C]
+        #print("w_mn1: " + str(w_mn))
+        #print(torch.max(w_mn))
+        #print(torch.min(w_mn))
+        #w_mn = torch.nn.Softmax(dim=1)(w_a) # compute softmax along key dimension 
+        w_mn = torch.nn.Softmax(dim=1)(w_mn) # compute softmax along key dimension 
+        #print("w_mn2: " + str(w_mn))
         
-        #x = self.gamma * o + f_a
-        x = self.dropout(o) + f_a
-        x = x.permute(2, 0, 1)
-        x = self.norm(x)
-        x = x.permute(1, 2, 0)
-        
-        return x
+        w_v = self.WV(f_a) # (B,K,dim_k)
 
-class PositionEmbeddingLearned(nn.Module):
-    """
-    Absolute pos embedding, learned.
-    """
+        w_mn = w_mn.view(B,K,K,1) # (B,K,K,1)
+        w_v = w_v.view(B,K,1,-1) # (B,K,1,dim_k)
+        output = w_mn*w_v # (B,K,K, dim_k)
+        output = torch.sum(output,1) # (B,K,dim_k)
 
-    def __init__(self, input_channel, num_pos_feats=288):
-        super().__init__()
-        self.position_embedding_head = nn.Sequential(
-            nn.Conv1d(input_channel, num_pos_feats, kernel_size=1),
-            nn.BatchNorm1d(num_pos_feats),
-            nn.ReLU(inplace=True),
-            nn.Conv1d(num_pos_feats, num_pos_feats, kernel_size=1))
+        return output
 
-    def forward(self, xyz):
-        xyz = xyz.transpose(1, 2).contiguous()
-        position_embedding = self.position_embedding_head(xyz)
-        return position_embedding
+class SkipParameter(nn.Module):
+    def __init__(self, init_value=0.01):
+        super(SkipParameter, self).__init__()
+        self.skip_value = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
+        nn.init.constant_(self.skip_value, init_value)
+        #self.skip_value = 1.0
+
+    def forward(self, f_a, concat):
+        return f_a + self.skip_value * concat
+
 
 
 #def init_weights(m):

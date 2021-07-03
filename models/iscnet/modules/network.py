@@ -60,6 +60,17 @@ class ISCNet(BaseNetwork):
         '''freeze submodules or not'''
         self.freeze_modules(cfg)
 
+    def init_weights(self):
+        # initialize transformer
+        for m in self.parameters():
+            if m.dim() > 1:
+                nn.init.xavier_uniform_(m)
+
+    def init_bn_momentum(self):
+        for m in self.modules():
+            if isinstance(m, (nn.BatchNorm2d, nn.BatchNorm1d)):
+                m.momentum = self.bn_momentum
+
     def generate(self, data):
         '''
         Forward pass of the network for mesh generation
@@ -69,7 +80,7 @@ class ISCNet(BaseNetwork):
         '''
         with torch.no_grad():
             mode = self.cfg.config['mode']
-
+            #print("Mode generate(): " + str(mode))
             inputs = {'point_clouds': data['point_clouds']}
             end_points = {}
             end_points = self.backbone(inputs['point_clouds'], end_points)
@@ -109,7 +120,7 @@ class ISCNet(BaseNetwork):
             if self.cfg.config[mode]['phase'] == 'completion':
                 
                 # Skip propagate point clouds to box centers.
-                device = end_points['center'].device
+                device = end_points['last_center'].device
                 if not self.cfg.config['data']['skip_propagate']:
                     gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, 128, 1).long().to(device)
                     object_input_features = torch.gather(proposal_features, 2, gather_ids)
@@ -121,11 +132,11 @@ class ISCNet(BaseNetwork):
 
                     # gather proposal centers
                     gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(-1).repeat(1,1,3).long().to(device)
-                    pred_centers = torch.gather(end_points['center'], 1, gather_ids)
+                    pred_centers = torch.gather(end_points['last_center'], 1, gather_ids)
 
                     # gather proposal orientations
-                    pred_heading_class = torch.argmax(end_points['heading_scores'], -1)  # B,num_proposal
-                    heading_residuals = end_points['heading_residuals_normalized'] * (np.pi / self.cfg.eval_config['dataset_config'].num_heading_bin)  # Bxnum_proposalxnum_heading_bin
+                    pred_heading_class = torch.argmax(end_points['last_heading_scores'], -1)  # B,num_proposal
+                    heading_residuals = end_points['last_heading_residuals_normalized'] * (np.pi / self.cfg.eval_config['dataset_config'].num_heading_bin)  # Bxnum_proposalxnum_heading_bin
                     pred_heading_residual = torch.gather(heading_residuals, 2, pred_heading_class.unsqueeze(-1))  # B,num_proposal,1
                     pred_heading_residual.squeeze_(2)
                     heading_angles = self.cfg.eval_config['dataset_config'].class2angle_cuda(pred_heading_class, pred_heading_residual)
@@ -144,8 +155,8 @@ class ISCNet(BaseNetwork):
                 batch_size, feat_dim, N_proposals = object_input_features.size()
                 object_input_features = object_input_features.transpose(1, 2).contiguous().view(batch_size * N_proposals, feat_dim)
 
-                gather_ids = BATCH_PROPOSAL_IDs[..., 0].unsqueeze(-1).repeat(1, 1, end_points['sem_cls_scores'].size(2))
-                cls_codes_for_completion = torch.gather(end_points['sem_cls_scores'], 1, gather_ids)
+                gather_ids = BATCH_PROPOSAL_IDs[..., 0].unsqueeze(-1).repeat(1, 1, end_points['last_sem_cls_scores'].size(2))
+                cls_codes_for_completion = torch.gather(end_points['last_sem_cls_scores'], 1, gather_ids)
                 cls_codes_for_completion = (cls_codes_for_completion >= torch.max(cls_codes_for_completion, dim=2, keepdim=True)[0]).float()
                 cls_codes_for_completion = cls_codes_for_completion.view(batch_size*N_proposals, -1)
 
@@ -349,28 +360,24 @@ class ISCNet(BaseNetwork):
             # Get sample ids for training (For limited GPU RAM)
             BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'objectness')
 
-            #feat_dim = self.cfg.config['model']['detection']['appearance_feature_dim']
-
             # Skip propagate point clouds to box centers.
-            device = end_points['center'].device
+            device = end_points['last_center'].device
             if not self.cfg.config['data']['skip_propagate']:
-                #gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, feat_dim, 1).long().to(device)
                 gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, 128, 1).long().to(device)
                 object_input_features = torch.gather(proposal_features, 2, gather_ids)
                 mask_loss = torch.tensor(0.).to(features.device)
             else:
                 # gather proposal features
-                #gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, feat_dim, 1).long().to(device)
                 gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, 128, 1).long().to(device)
                 proposal_features = torch.gather(proposal_features, 2, gather_ids)
 
                 # gather proposal centers
                 gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(-1).repeat(1,1,3).long().to(device)
-                pred_centers = torch.gather(end_points['center'], 1, gather_ids)
+                pred_centers = torch.gather(end_points['last_center'], 1, gather_ids)
 
                 # gather proposal orientations
-                pred_heading_class = torch.argmax(end_points['heading_scores'], -1)  # B,num_proposal
-                heading_residuals = end_points['heading_residuals_normalized'] * (np.pi / self.cfg.eval_config['dataset_config'].num_heading_bin)  # Bxnum_proposalxnum_heading_bin
+                pred_heading_class = torch.argmax(end_points['last_heading_scores'], -1)  # B,num_proposal
+                heading_residuals = end_points['last_heading_residuals_normalized'] * (np.pi / self.cfg.eval_config['dataset_config'].num_heading_bin)  # Bxnum_proposalxnum_heading_bin
                 pred_heading_residual = torch.gather(heading_residuals, 2, pred_heading_class.unsqueeze(-1))  # B,num_proposal,1
                 pred_heading_residual.squeeze_(2)
                 heading_angles = self.cfg.eval_config['dataset_config'].class2angle_cuda(pred_heading_class, pred_heading_residual)
@@ -412,18 +419,18 @@ class ISCNet(BaseNetwork):
         :return:
         '''
         batch_size, MAX_NUM_OBJ = data['box_label_mask'].shape
-        device = end_points['center'].device
-        NUM_PROPOSALS = end_points['center'].size(1)
+        device = end_points['last_center'].device
+        NUM_PROPOSALS = end_points['last_center'].size(1)
         object_limit_per_scene = self.cfg.config['data']['completion_limit_in_train']
         proposal_id_list = []
 
         if mode == 'objectness' or batch_sample_ids is not None:
-            objectness_probs = torch.softmax(end_points['objectness_scores'], dim=2)[..., 1]
+            objectness_probs = torch.softmax(end_points['last_objectness_scores'], dim=2)[..., 1]
 
         for batch_id in range(batch_size):
             box_mask = torch.nonzero(data['box_label_mask'][batch_id])
             gt_centroids = data['center_label'][batch_id, box_mask, 0:3].squeeze(1)
-            dist1, object_assignment, _, _ = nn_distance(end_points['center'][batch_id].unsqueeze(0),
+            dist1, object_assignment, _, _ = nn_distance(end_points['last_center'][batch_id].unsqueeze(0),
                                                          gt_centroids.unsqueeze(0))  # dist1: BxK, dist2: BxK2
             object_assignment = box_mask[object_assignment[0]].squeeze(-1)
             proposal_to_gt_box_w_cls = torch.cat(
@@ -448,8 +455,6 @@ class ISCNet(BaseNetwork):
                 else:
                     raise NameError('Please specify a correct filtering mode.')
             else:
-                #print("objectness_probs[batch_id]: " + str(objectness_probs[batch_id]))
-                #print("batch_sample_ids[batch_id]: " + str(batch_sample_ids[batch_id]))
                 sample_ids = (objectness_probs[batch_id] > DUMP_CONF_THRESH).cpu().numpy()*batch_sample_ids[batch_id]
 
             proposal_to_gt_box_w_cls = proposal_to_gt_box_w_cls[sample_ids].long()
