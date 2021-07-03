@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-06-14T17:17:58.945856/model_best.pth']
+weight: ['out/iscnet/2021-07-03T02:15:48.232523/model_best.pth', '']
 seed: 10
 device:
   use_gpu: True
@@ -39,6 +39,7 @@ model:
     method: ProposalModule
     loss: DetectionLoss
     use_attention: True
+    appearance_feature_dim: 128
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null 

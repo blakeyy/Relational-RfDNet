@@ -4,9 +4,10 @@ datasets/ShapeNetv2_data/point
 datasets/ShapeNetv2_data/pointcloud
 datasets/ShapeNetv2_data/voxel
 datasets/ShapeNetv2_data/watertight_scaled_simplified
-out/iscnet/
-out/pretrained_models/
+out/
+plot_gradient/
 runs/
+runs_old/
 temp/
 build/
 

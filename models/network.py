@@ -78,14 +78,34 @@ class BaseNetwork(nn.Module):
             if name in freeze_layers:
                 child.train(False)
 
-    def load_weight(self, pretrained_model):
+    def load_weight(self, pretrained_model, selftrained_model=None):
         model_dict = self.state_dict()
-        # remove the 'module' string.
-        pretrained_dict = {'.'.join(k.split('.')[1:]): v for k, v in pretrained_model.items() if
-                           '.'.join(k.split('.')[1:]) in model_dict}
-        self.cfg.log_string(
-            str(set([key.split('.')[0] for key in model_dict if key not in pretrained_dict])) + ' subnet missed.')
-        model_dict.update(pretrained_dict)
+        if selftrained_model is not None:
+            # remove the 'module' string.
+            pretrained_dict = {'.'.join(k.split('.')[1:]): v for k, v in pretrained_model.items() if
+                            '.'.join(k.split('.')[1:]) in model_dict and k.split('.')[1] in ['completion', 'skip_propagation']}
+            selftrained_dict = {'.'.join(k.split('.')[1:]): v for k, v in selftrained_model.items() if
+                            '.'.join(k.split('.')[1:]) in model_dict and k.split('.')[1] in ['backbone', 'voting', 'detection']}
+            #for k, v in pretrained_dict.items():
+            #    print("++++ Pretrained_dict: " + str(k))
+            #for k, v in selftrained_dict.items():
+            #    print("++++ selftrained_dict: " + str(k))
+            #print("++++ model_dict: " + str(model_dict))
+            self.cfg.log_string(
+                str(set([key.split('.')[0] for key in model_dict if key not in pretrained_dict])) + ' subnet missed.')
+            self.cfg.log_string(
+                str(set([key.split('.')[0] for key in model_dict if key not in selftrained_dict])) + ' subnet missed.')
+            model_dict.update(pretrained_dict)
+            model_dict.update(selftrained_dict)
+        else:
+            # remove the 'module' string.
+            pretrained_dict = {'.'.join(k.split('.')[1:]): v for k, v in pretrained_model.items() if
+                            '.'.join(k.split('.')[1:]) in model_dict}
+            #for k, v in pretrained_dict.items():
+            #    print("++++ Pretrained_dict: " + str(k))
+            self.cfg.log_string(
+                str(set([key.split('.')[0] for key in model_dict if key not in pretrained_dict])) + ' subnet missed.')
+            model_dict.update(pretrained_dict)
         self.load_state_dict(model_dict)
 
     def load_optim_spec(self, config, net_spec):

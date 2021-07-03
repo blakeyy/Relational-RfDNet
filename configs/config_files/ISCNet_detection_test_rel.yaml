@@ -1,19 +1,19 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth', ''] #['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth']
+weight: ['out/iscnet/2021-07-01T23:00:51.522290/model_best.pth', '']
 seed: 10
 device:
   use_gpu: True
-  gpu_ids: '0' #'0,1'
-  num_workers: 4 #8
+  gpu_ids: '0'
+  num_workers: 4
 data:
   dataset: scannet
   split: datasets/splits/fullscan
   num_point: 80000
   num_target: 256
   vote_factor: 1
-  cluster_sampling: vote_fps
+  cluster_sampling: seed_fps
   ap_iou_thresh: 0.25
   no_height: False
   use_color_detection: False
@@ -37,16 +37,15 @@ model:
     loss: Null
   detection:
     method: ProposalModule
-    loss: DetectionLoss 
-    use_attention: True
-    appearance_feature_dim: 256
+    loss: DetectionLoss
+    use_attention: False
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null 
-    n_relations: 8
-    appearance_feature_dim: 768
-    key_feature_dim: 96 
-    geo_feature_dim: 96
+    n_relations: 1
+    appearance_feature_dim: 128 #96
+    key_feature_dim: 32
+    geo_feature_dim: 128
     isDuplication: False
   skip_propagation:
     method: SkipPropagation
@@ -54,47 +53,34 @@ model:
   completion:
     method: ONet
     loss: ONet_Loss
-    weight: 1
-optimizer:
-  method: Adam
-  lr: 1e-4
-  betas: [0.9, 0.999]
-  eps: 1e-08
-  weight_decay: 0
-scheduler:
-  patience: 20
-  factor: 0.4
-  threshold: 0.01
-  min_lr: 0
-bnscheduler:
-  bn_decay_step: 20
-  bn_decay_rate: 0.5
-  bn_momentum_init: 0.5
-  bn_momentum_max: 0.001
-train:
-  epochs: 400
-  phase: 'completion'
-  use_relation: False
-  freeze: ['backbone', 'voting', 'detection'] #, 'enhance_recognition']
-  batch_size: 2
-val:
-  phase: 'completion'
-  use_relation: False
-  batch_size: 2
+    weight: 0.005
+test:
+  phase: 'detection'
+  use_relation: True
+  batch_size: 1
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]
-  faster_eval: True
+  faster_eval: False
   nms_iou: 0.25
   use_old_type_nms: False
   per_class_proposal: True
   conf_thresh: 0.05
+  evaluate_mesh_mAP: False
+generation:
+  generate_mesh: False
+  resolution_0: 32
+  upsampling_steps: 0
+  use_sampling: False
+  refinement_step: 0
+  simplify_nfaces: Null
+  dump_threshold: 0.5
+  dump_results: True
 demo:
-  phase: 'completion'
+  phase: 'detection'
 log:
   vis_path: visualization
   save_results: True
-  vis_step: 500
-  print_step: 10
+  vis_step: 1
+  print_step: 1
   path: out/iscnet
-  plot_gradient_epoch_step: 5

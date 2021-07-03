@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: False
-weight: []
+weight: ['out/iscnet/2021-06-27T10:50:45.322629/model_best.pth', '']
 seed: 10
 device:
   use_gpu: True
@@ -39,6 +39,7 @@ model:
     method: ProposalModule
     loss: DetectionLoss
     use_attention: True
+    appearance_feature_dim: 128
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null
@@ -61,8 +62,8 @@ optimizer:
   eps: 1e-08
   weight_decay: 0
 scheduler:
-  patience: 1000
-  factor: 0.2
+  patience: 20
+  factor: 0.1
   threshold: 0.01
   min_lr: 0 #1.25e-4
 bnscheduler:
@@ -87,7 +88,7 @@ val:
   nms_iou: 0.25
   use_old_type_nms: False
   per_class_proposal: True
-  conf_thresh: 0.05
+  conf_thresh: 0.5
 demo:
   phase: 'detection'
 log:
@@ -96,4 +97,4 @@ log:
   vis_step: 500
   print_step: 10
   path: out/iscnet
-  plot_gradient_epoch_step: 10
+  plot_gradient_epoch_step: 1

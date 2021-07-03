@@ -64,6 +64,7 @@ class ProposalModule(nn.Module):
         self.num_proposal = cfg.config['data']['num_target']
         self.sampling = cfg.config['data']['cluster_sampling']
         self.seed_feat_dim = 256
+        feat_dim = self.cfg.config['model']['detection']['appearance_feature_dim']
 
         '''Modules'''
         # Vote clustering
@@ -72,17 +73,40 @@ class ProposalModule(nn.Module):
                 radius=0.3,
                 nsample=16,
                 mlp=[self.seed_feat_dim, 128, 128, 128],
+                #mlp=[self.seed_feat_dim, feat_dim, feat_dim, feat_dim],
                 use_xyz=True,
                 normalize_xyz=True
             )
 
+        # MLPs
+        self.mlp1 = nn.Sequential(nn.Conv1d(128,feat_dim,1), \
+                                            nn.BatchNorm1d(feat_dim), \
+                                            nn.ReLU(), \
+                                            nn.Conv1d(feat_dim,feat_dim,1))
+        self.mlp2 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
+                                            nn.BatchNorm1d(feat_dim), \
+                                            nn.ReLU(), \
+                                            nn.Conv1d(feat_dim,feat_dim,1))  
+        self.mlp3 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
+                                            nn.BatchNorm1d(feat_dim), \
+                                            nn.ReLU(), \
+                                            nn.Conv1d(feat_dim,128,1)) 
         # Attention Module
         if cfg.config['model']['detection']['use_attention']:
-            self.attention = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention1 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention2 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention3 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention4 = MODULES.get('SelfAttention')(cfg, optim_spec)
+
+            self.attention5 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention6 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention7 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            self.attention8 = MODULES.get('SelfAttention')(cfg, optim_spec)
 
         # Object proposal/detection
         # Objectness scores (2), center residual (3),
         # heading class+residual (num_heading_bin*2), size class+residual(num_size_cluster*4)
+        #self.conv1 = torch.nn.Conv1d(feat_dim,128,1) 
         self.conv1 = torch.nn.Conv1d(128,128,1)
         self.conv2 = torch.nn.Conv1d(128,128,1)
         self.conv3 = torch.nn.Conv1d(128,2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class,1)
@@ -121,7 +145,18 @@ class ProposalModule(nn.Module):
 
         # --------- SELF-ATTENTION MODULE ---------
         if self.cfg.config['model']['detection']['use_attention']:
-            features = self.attention(features)
+            
+            features = self.mlp1(features)
+            features = self.attention1(features)
+            features = self.attention2(features)
+            features = self.attention3(features)
+            features = self.attention4(features)
+            features = self.mlp2(features)
+            features = self.attention5(features)
+            features = self.attention6(features)
+            features = self.attention7(features)
+            features = self.attention8(features)
+            features = self.mlp3(features)
 
         # --------- PROPOSAL GENERATION ---------
         net = F.relu(self.bn1(self.conv1(features)))

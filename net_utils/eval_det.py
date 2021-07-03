@@ -468,6 +468,6 @@ def eval_det_multiprocessing_wo_mesh(pred_all, gt_all, ovthresh=0.25, use_07_met
             rec[classname] = 0
             prec[classname] = 0
             ap[classname] = 0
-        print(classname, ap[classname])
-
+        #print(classname, ap[classname]) ### INGO
+        
     return rec, prec, ap

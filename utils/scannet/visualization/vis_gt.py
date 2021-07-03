@@ -245,7 +245,10 @@ class Vis_base(Vis_Scannet):
         render_window_interactor.Start()
 
 if __name__ == '__main__':
-    scene_dirname = 'scene0339_00'
+    scene_dirname = 'scene0704_01'
+    #scene_dirname = 'scene0466_01'
+    #scene_dirname = 'scene0359_01'
+    #scene_dirname = 'scene0317_01'
     fused_points = np.load(os.path.join(path_config.processed_data_path, scene_dirname, 'full_scan.npz'))['mesh_vertices'][:,:3]
     with open(os.path.join(path_config.processed_data_path, scene_dirname, 'bbox.pkl'), 'rb') as file:
         bboxes = pickle.load((file))

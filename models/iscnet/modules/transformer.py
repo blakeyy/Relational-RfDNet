@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 from typing import Optional
-from multi_head_attention import MultiheadAttention
+from .multi_head_attention import MultiheadAttention
 
 
 class TransformerDecoderLayer(nn.Module):

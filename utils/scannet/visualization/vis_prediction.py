@@ -10,14 +10,20 @@ from glob import glob
 import re
 
 if __name__ == '__main__':
-    root_path = 'out/iscnet/2021-04-08T10:56:00.473474/visualization/test_36_scene0549_00'
+    #vis_root = 'out/iscnet/2021-05-07T13:42:24.860495_test1/visualization/'  # original
+    #vis_root = 'out/iscnet/2021-06-18T15:00:17.412105/visualization/'  # ours
+    vis_root = 'out/iscnet/2021-06-29T21:19:23.098480/visualization' # before finetune
+    #vis_root = 'out/iscnet/2021-06-30T20:55:32.422757/visualization' # after finetune
+    root_path = os.path.join(vis_root, 'test_0_scene0704_01')
+    #root_path = 'out/iscnet/2021-04-08T10:56:00.473474/visualization/test_36_scene0549_00'
     predicted_boxes = np.load(os.path.join(root_path, '000000_pred_confident_nms_bbox.npz'))
     input_point_cloud = pc_util.read_ply(os.path.join(root_path, '000000_pc.ply'))
     bbox_params = predicted_boxes['obbs']
     proposal_map = predicted_boxes['proposal_map']
 
     transform_m = np.array([[0, 0, -1], [-1, 0, 0], [0, 1, 0]])
-
+    print("size proposal_map: " + str(proposal_map.shape))
+    print("size bbox_params: " + str(bbox_params.shape))
     instance_models = []
     center_list = []
     vector_list = []
@@ -26,39 +32,42 @@ if __name__ == '__main__':
     for mesh_file in glob(os.path.join(root_path, 'proposal_*.ply')):
         proposal_id, _, cls_id = \
         re.findall(r'proposal_(\d+)_target_(\d+)_class_(\d+)_mesh.ply', os.path.basename(mesh_file))[0]
-        bbox_param = bbox_params[list(proposal_map[:, 0]).index(int(proposal_id))]
+        #print(proposal_id)
+        temp = list(proposal_map[:, 0]).index(int(proposal_id))
+        if temp < bbox_params.shape[0]:
+            bbox_param = bbox_params[temp]
 
-        ply_reader = vtk.vtkPLYReader()
-        ply_reader.SetFileName(mesh_file)
-        ply_reader.Update()
-        # get points from object
-        polydata = ply_reader.GetOutput()
-        # read points using vtk_to_numpy
-        obj_points = vtk_to_numpy(polydata.GetPoints().GetData()).astype(np.float)
+            ply_reader = vtk.vtkPLYReader()
+            ply_reader.SetFileName(mesh_file)
+            ply_reader.Update()
+            # get points from object
+            polydata = ply_reader.GetOutput()
+            # read points using vtk_to_numpy
+            obj_points = vtk_to_numpy(polydata.GetPoints().GetData()).astype(np.float)
 
-        '''Fit obj points to bbox'''
-        center = bbox_param[:3]
-        orientation = bbox_param[6]
-        sizes = bbox_param[3:6]
+            '''Fit obj points to bbox'''
+            center = bbox_param[:3]
+            orientation = bbox_param[6]
+            sizes = bbox_param[3:6]
 
-        obj_points = obj_points - (obj_points.max(0) + obj_points.min(0))/2.
-        obj_points = obj_points.dot(transform_m.T)
-        obj_points = obj_points.dot(np.diag(1/(obj_points.max(0) - obj_points.min(0)))).dot(np.diag(sizes))
+            obj_points = obj_points - (obj_points.max(0) + obj_points.min(0))/2.
+            obj_points = obj_points.dot(transform_m.T)
+            obj_points = obj_points.dot(np.diag(1/(obj_points.max(0) - obj_points.min(0)))).dot(np.diag(sizes))
 
-        axis_rectified = np.array([[np.cos(orientation), np.sin(orientation), 0], [-np.sin(orientation), np.cos(orientation), 0], [0, 0, 1]])
-        obj_points = obj_points.dot(axis_rectified) + center
+            axis_rectified = np.array([[np.cos(orientation), np.sin(orientation), 0], [-np.sin(orientation), np.cos(orientation), 0], [0, 0, 1]])
+            obj_points = obj_points.dot(axis_rectified) + center
 
-        points_array = numpy_to_vtk(obj_points[..., :3], deep=True)
-        polydata.GetPoints().SetData(points_array)
-        ply_reader.Update()
+            points_array = numpy_to_vtk(obj_points[..., :3], deep=True)
+            polydata.GetPoints().SetData(points_array)
+            ply_reader.Update()
 
-        '''draw bboxes'''
-        vectors = np.diag(sizes/2.).dot(axis_rectified)
+            '''draw bboxes'''
+            vectors = np.diag(sizes/2.).dot(axis_rectified)
 
-        instance_models.append(ply_reader)
-        center_list.append(center)
-        vector_list.append(vectors)
-        class_ids.append(int(cls_id))
+            instance_models.append(ply_reader)
+            center_list.append(center)
+            vector_list.append(vectors)
+            class_ids.append(int(cls_id))
 
     input_point_cloud = np.hstack([input_point_cloud, np.zeros_like(input_point_cloud)])
 

@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
-finetune: True
-weight: ['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth', ''] #['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth']
+finetune: False
+weight: ['', '']
 seed: 10
 device:
   use_gpu: True
@@ -37,16 +37,15 @@ model:
     loss: Null
   detection:
     method: ProposalModule
-    loss: DetectionLoss 
-    use_attention: True
-    appearance_feature_dim: 256
+    loss: DetectionLoss
+    use_attention: False
   enhance_recognition: 
     method: RelationalProposalModule
-    loss: Null 
-    n_relations: 8
-    appearance_feature_dim: 768
-    key_feature_dim: 96 
-    geo_feature_dim: 96
+    loss: Null
+    n_relations: 1
+    appearance_feature_dim: 128
+    key_feature_dim: 32
+    geo_feature_dim: 128
     isDuplication: False
   skip_propagation:
     method: SkipPropagation
@@ -57,30 +56,30 @@ model:
     weight: 1
 optimizer:
   method: Adam
-  lr: 1e-4
+  lr: 1e-3
   betas: [0.9, 0.999]
   eps: 1e-08
   weight_decay: 0
 scheduler:
   patience: 20
-  factor: 0.4
+  factor: 0.5
   threshold: 0.01
-  min_lr: 0
+  min_lr: 0 #1.25e-4
 bnscheduler:
   bn_decay_step: 20
   bn_decay_rate: 0.5
   bn_momentum_init: 0.5
   bn_momentum_max: 0.001
 train:
-  epochs: 400
-  phase: 'completion'
-  use_relation: False
-  freeze: ['backbone', 'voting', 'detection'] #, 'enhance_recognition']
-  batch_size: 2
+  epochs: 2000
+  phase: 'detection'
+  use_relation: True
+  freeze: []
+  batch_size: 8
 val:
-  phase: 'completion'
-  use_relation: False
-  batch_size: 2
+  phase: 'detection'
+  use_relation: True
+  batch_size: 8
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]
@@ -90,11 +89,11 @@ val:
   per_class_proposal: True
   conf_thresh: 0.05
 demo:
-  phase: 'completion'
+  phase: 'detection'
 log:
   vis_path: visualization
   save_results: True
   vis_step: 500
   print_step: 10
   path: out/iscnet
-  plot_gradient_epoch_step: 5
+  plot_gradient_epoch_step: 1

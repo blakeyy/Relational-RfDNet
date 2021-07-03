@@ -349,14 +349,18 @@ class ISCNet(BaseNetwork):
             # Get sample ids for training (For limited GPU RAM)
             BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'objectness')
 
+            #feat_dim = self.cfg.config['model']['detection']['appearance_feature_dim']
+
             # Skip propagate point clouds to box centers.
             device = end_points['center'].device
             if not self.cfg.config['data']['skip_propagate']:
+                #gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, feat_dim, 1).long().to(device)
                 gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, 128, 1).long().to(device)
                 object_input_features = torch.gather(proposal_features, 2, gather_ids)
                 mask_loss = torch.tensor(0.).to(features.device)
             else:
                 # gather proposal features
+                #gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, feat_dim, 1).long().to(device)
                 gather_ids = BATCH_PROPOSAL_IDs[...,0].unsqueeze(1).repeat(1, 128, 1).long().to(device)
                 proposal_features = torch.gather(proposal_features, 2, gather_ids)
 
@@ -444,6 +448,8 @@ class ISCNet(BaseNetwork):
                 else:
                     raise NameError('Please specify a correct filtering mode.')
             else:
+                #print("objectness_probs[batch_id]: " + str(objectness_probs[batch_id]))
+                #print("batch_sample_ids[batch_id]: " + str(batch_sample_ids[batch_id]))
                 sample_ids = (objectness_probs[batch_id] > DUMP_CONF_THRESH).cpu().numpy()*batch_sample_ids[batch_id]
 
             proposal_to_gt_box_w_cls = proposal_to_gt_box_w_cls[sample_ids].long()

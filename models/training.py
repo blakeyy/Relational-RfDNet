@@ -85,9 +85,12 @@ class BaseTrainer(object):
         layers = []
         for n, p in named_parameters:
             if(p.requires_grad) and ("bias" not in n):
-                layers.append(n)
-                ave_grads.append(p.grad.abs().mean())
-                max_grads.append(p.grad.abs().max())
+                if p.grad is not None:
+                    layers.append(n)
+                    ave_grads.append(p.grad.abs().mean())
+                    max_grads.append(p.grad.abs().max())
+                else:
+                    print(n)
         figure = plt.figure(figsize = (26.5,14.5))
         ax = figure.add_subplot(111)
         ax.bar(np.arange(len(max_grads)), max_grads, alpha=0.4, lw=1, color="c")

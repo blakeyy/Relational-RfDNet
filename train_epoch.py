@@ -49,7 +49,15 @@ def train_epoch(cfg, epoch, trainer, dataloaders):
                 lrs = trainer.get_lr() ##Ingo
                 loss['lr'] = lrs[0]
                 if cfg.config['model']['detection']['use_attention']:
-                    loss['skip_parameter'] = trainer.net.module.detection.attention.gamma
+                    loss['skip_parameter'] = trainer.net.module.detection.attention1.skip.skip_value
+                #if cfg.config['model']['detection']['use_attention']:
+                #    loss['skip_parameter2'] = trainer.net.module.detection.attention2.skip.skip_value
+                #if cfg.config['model']['detection']['use_attention']:
+                #    loss['skip_parameter3'] = trainer.net.module.detection.attention3.skip.skip_value
+                #if cfg.config['model']['detection']['use_attention']:
+                #    loss['skip_parameter4'] = trainer.net.module.detection.attention4.skip.skip_value
+                #if cfg.config['train']['use_relation']:
+                #    loss['skip_parameter'] = trainer.net.module.enhance_recognition.gamma
                 log_board.update(loss, cfg.config['log']['print_step'], phase)
 
         cfg.log_string('=' * 100)
