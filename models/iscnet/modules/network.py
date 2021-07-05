@@ -31,7 +31,7 @@ class ISCNet(BaseNetwork):
         self.num_size_cluster = cfg.dataset_config.num_size_cluster
         phase_names = []
         if cfg.config[cfg.config['mode']]['phase'] in ['detection']:
-            phase_names += ['backbone', 'voting', 'detection']
+            phase_names += ['backbone', 'voting', 'detection']#, 'duplicate_removal']
         if cfg.config[cfg.config['mode']]['phase'] in ['completion']:
             phase_names += ['backbone', 'voting', 'detection', 'completion']
             if cfg.config['data']['skip_propagate']:
@@ -344,6 +344,10 @@ class ISCNet(BaseNetwork):
         if self.cfg.config[self.cfg.config['mode']]['use_relation']:
             end_points, proposal_features = self.enhance_recognition(proposal_features, end_points, data)
 
+        #nms_scores, sorted_labels, sorted_cls_bboxes = self.duplicate_removal(end_points, proposal_features)
+        #print('nms_scores' + str(nms_scores))
+        #print('sorted_labels' + str(sorted_labels))
+        #print('sorted_cls_bboxes' + str(sorted_cls_bboxes))
         # --------- INSTANCE COMPLETION ---------
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':
             # Get sample ids for training (For limited GPU RAM)

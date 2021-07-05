@@ -39,7 +39,7 @@ model:
     method: ProposalModule
     loss: DetectionLoss
     use_attention: True
-    appearance_feature_dim: 128
+    appearance_feature_dim: 64
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null
@@ -48,6 +48,9 @@ model:
     key_feature_dim: 96 
     geo_feature_dim: 96
     isDuplication: False
+  duplicate_removal:
+    method: DuplicationRemovalNetwork
+    loss: Null
   skip_propagation:
     method: SkipPropagation
     loss: Null
@@ -63,7 +66,7 @@ optimizer:
   weight_decay: 0
 scheduler:
   patience: 20
-  factor: 0.5
+  factor: 0.1
   threshold: 0.01
   min_lr: 0 #1.25e-4
 bnscheduler:

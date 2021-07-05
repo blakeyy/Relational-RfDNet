@@ -72,25 +72,28 @@ class ProposalModule(nn.Module):
                 npoint=self.num_proposal,
                 radius=0.3,
                 nsample=16,
-                mlp=[self.seed_feat_dim, 128, 128, 128],
-                #mlp=[self.seed_feat_dim, feat_dim, feat_dim, feat_dim],
+                #mlp=[self.seed_feat_dim, 128, 128, 128],
+                mlp=[self.seed_feat_dim, feat_dim, feat_dim, feat_dim],
                 use_xyz=True,
                 normalize_xyz=True
             )
 
         # MLPs
-        self.mlp1 = nn.Sequential(nn.Conv1d(128,feat_dim,1), \
-                                            nn.BatchNorm1d(feat_dim), \
-                                            nn.ReLU(), \
-                                            nn.Conv1d(feat_dim,feat_dim,1))
-        self.mlp2 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
-                                            nn.BatchNorm1d(feat_dim), \
-                                            nn.ReLU(), \
-                                            nn.Conv1d(feat_dim,feat_dim,1))  
-        self.mlp3 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
-                                            nn.BatchNorm1d(feat_dim), \
-                                            nn.ReLU(), \
-                                            nn.Conv1d(feat_dim,128,1)) 
+        #self.mlp1 = nn.Sequential(nn.Conv1d(128,feat_dim,1), \
+        #                                    nn.BatchNorm1d(feat_dim), \
+        #                                    nn.ReLU(), \
+        #                                    nn.Conv1d(feat_dim,feat_dim,1))
+        #self.mlp2 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
+        #                                    nn.BatchNorm1d(feat_dim), \
+        #                                    nn.ReLU(), \
+        #                                    nn.Conv1d(feat_dim,feat_dim,1))  
+        #self.mlp3 = nn.Sequential(nn.Conv1d(feat_dim,feat_dim,1), \
+        #                                    nn.BatchNorm1d(feat_dim), \
+        #                                    nn.ReLU(), \
+        #                                    nn.Conv1d(feat_dim,128,1)) 
+        
+         
+
         # Attention Module
         if cfg.config['model']['detection']['use_attention']:
             self.attention1 = MODULES.get('SelfAttention')(cfg, optim_spec)
@@ -103,15 +106,22 @@ class ProposalModule(nn.Module):
             self.attention7 = MODULES.get('SelfAttention')(cfg, optim_spec)
             self.attention8 = MODULES.get('SelfAttention')(cfg, optim_spec)
 
+            #self.mlp4 = nn.Sequential(nn.Conv1d(512,256,1), \
+            #                        nn.BatchNorm1d(256), \
+            #                        nn.ReLU(), \
+            #                        nn.Conv1d(256,128,1))
+
+            #self.gn = torch.nn.GroupNorm(8, 1024)
+
         # Object proposal/detection
         # Objectness scores (2), center residual (3),
         # heading class+residual (num_heading_bin*2), size class+residual(num_size_cluster*4)
         #self.conv1 = torch.nn.Conv1d(feat_dim,128,1) 
-        self.conv1 = torch.nn.Conv1d(128,128,1)
-        self.conv2 = torch.nn.Conv1d(128,128,1)
-        self.conv3 = torch.nn.Conv1d(128,2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class,1)
-        self.bn1 = torch.nn.BatchNorm1d(128)
-        self.bn2 = torch.nn.BatchNorm1d(128)
+        self.conv1 = torch.nn.Conv1d(1152,512,1)
+        self.conv2 = torch.nn.Conv1d(512,256,1)
+        self.conv3 = torch.nn.Conv1d(256,2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class,1)
+        self.bn1 = torch.nn.BatchNorm1d(512)
+        self.bn2 = torch.nn.BatchNorm1d(256)
 
 
     def forward(self, xyz, features, end_points, export_proposal_feature=False):
@@ -146,17 +156,32 @@ class ProposalModule(nn.Module):
         # --------- SELF-ATTENTION MODULE ---------
         if self.cfg.config['model']['detection']['use_attention']:
             
-            features = self.mlp1(features)
-            features = self.attention1(features)
-            features = self.attention2(features)
-            features = self.attention3(features)
-            features = self.attention4(features)
-            features = self.mlp2(features)
-            features = self.attention5(features)
-            features = self.attention6(features)
-            features = self.attention7(features)
-            features = self.attention8(features)
-            features = self.mlp3(features)
+            #features = self.mlp1(features)
+            #features = self.attention1([features, None])
+            #features = self.attention2([features, None])
+            #features = self.attention3([features, None])
+            #features = self.attention4([features, None])
+            #features = self.mlp2(features)
+            #features = self.attention5([features, None])
+            #features = self.attention6([features, None])
+            #features = self.attention7([features, None])
+            #features = self.attention8([features, None])
+            #features = self.mlp3(features)
+            
+            input = features
+            features = torch.cat((input, self.attention1([input, None])), 1)
+            features = torch.cat((features, self.attention2([input, None])), 1)
+            features = torch.cat((features, self.attention3([input, None])), 1)
+            features = torch.cat((features, self.attention4([input, None])), 1)
+
+            features = torch.cat((features, self.attention5([input, None])), 1)
+            features = torch.cat((features, self.attention6([input, None])), 1)
+            features = torch.cat((features, self.attention7([input, None])), 1)
+            features = torch.cat((features, self.attention8([input, None])), 1)
+            #features = self.gn(features)
+            
+            #features = self.mlp4(features)
+            #features = self.attention1([features, None])
 
         # --------- PROPOSAL GENERATION ---------
         net = F.relu(self.bn1(self.conv1(features)))

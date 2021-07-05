@@ -37,39 +37,35 @@ class SelfAttention(nn.Module):
         #nn.init.constant_(self.gamma, 0.0)
         self.skip = SkipParameter()
 
-        #self.F = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        #self.G = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        #self.H = torch.nn.Conv2d(feat_dim, feat_dim, kernel_size=1, padding=0, stride=1, bias=False)
+        self.F = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.G = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.H = torch.nn.Conv2d(feat_dim, feat_dim, kernel_size=1, padding=0, stride=1, bias=False)
 
-
-        self.F = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.G = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.H = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-
-        self.F2 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.G2 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.H2 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-
-        self.F3 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.G3 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.H3 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-
-        self.F4 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.G4 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.H4 = torch.nn.Conv2d(feat_dim, self.layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.mlp = nn.Sequential(nn.Conv1d(128,128,1), \
+                                    nn.BatchNorm1d(128), \
+                                    nn.ReLU(), \
+                                    nn.Conv1d(128,128,1))
 
         #self.bn = torch.nn.BatchNorm1d(dim)
-        self.group_norm = torch.nn.GroupNorm(num_groups=4, num_channels=feat_dim) # num_groups = num_channels = LayerNorm
+        #self.group_norm = torch.nn.GroupNorm(num_groups=1, num_channels=feat_dim) # num_groups = num_channels = LayerNorm
         #self.layer_norm = torch.nn.LayerNorm()
         #self.dropout = nn.Dropout(0.1)
 
     def forward(self, inputs):
-        B, C, N = inputs.shape
+        input, nms_feat = inputs
+        if nms_feat is not None:
+            feat = nms_feat
+        else:
+            feat = input
+
+        
         #print(inputs.shape)
-        inputs = inputs.unsqueeze(-1)
-        f = self.F(inputs)
-        g = self.G(inputs)
-        h = self.H(inputs)
+        feat = feat.unsqueeze(-1)
+        f = self.F(feat)
+        g = self.G(feat)
+        h = self.H(feat)
+
+        B, C, N, _ = h.shape
 
         f = f.transpose(dim0=1,dim1=3)
         g = g.transpose(dim0=1,dim1=3)
@@ -81,78 +77,24 @@ class SelfAttention(nn.Module):
 
         o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
         
-        inputs = torch.squeeze(inputs, dim=-1)
-        #o = torch.reshape(o, shape=inputs.shape)  # [bs, h, w, C]
-        o = torch.reshape(o, shape=[B, self.layer, N])
-        concat = o
+        #inputs = torch.squeeze(inputs, dim=-1)
+        o = torch.reshape(o, shape=[B, C, N])  # [bs, h, w, C]
+        #o = torch.reshape(o, shape=[B, self.layer, N])
+        #concat = o
 
-        ### 2
-        inputs = inputs.unsqueeze(-1)
-        f = self.F2(inputs)
-        g = self.G2(inputs)
-        h = self.H2(inputs)
-
-        f = f.transpose(dim0=1,dim1=3)
-        g = g.transpose(dim0=1,dim1=3)
-        h = h.transpose(dim0=1,dim1=3)
-
-        s = torch.matmul(hw_flatten(g), hw_flatten(f).transpose(dim0=1,dim1=2))  # # [bs, N, N]
-
-        beta = F.softmax(s, dim=-1)  # attention map
-
-        o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
+        #o = torch.reshape(o, shape=[B, self.layer, N])
+        #concat = concat + o 
+        #concat = torch.cat((concat, o), 1)
         
-        inputs = torch.squeeze(inputs, dim=-1)
-        o = torch.reshape(o, shape=[B, self.layer, N])
-        concat = torch.cat((concat, o), 1)
-        
-        ### 3
-        inputs = inputs.unsqueeze(-1)
-        f = self.F3(inputs)
-        g = self.G3(inputs)
-        h = self.H3(inputs)
-
-        f = f.transpose(dim0=1,dim1=3)
-        g = g.transpose(dim0=1,dim1=3)
-        h = h.transpose(dim0=1,dim1=3)
-
-        s = torch.matmul(hw_flatten(g), hw_flatten(f).transpose(dim0=1,dim1=2))  # # [bs, N, N]
-
-        beta = F.softmax(s, dim=-1)  # attention map
-
-        o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
-        
-        inputs = torch.squeeze(inputs, dim=-1)
-        o = torch.reshape(o, shape=[B, self.layer, N])  # [bs, h, w, C]
-        concat = torch.cat((concat, o), 1)
-
-        ### 4
-        inputs = inputs.unsqueeze(-1)
-        f = self.F4(inputs)
-        g = self.G4(inputs)
-        h = self.H4(inputs)
-
-        f = f.transpose(dim0=1,dim1=3)
-        g = g.transpose(dim0=1,dim1=3)
-        h = h.transpose(dim0=1,dim1=3)
-
-        s = torch.matmul(hw_flatten(g), hw_flatten(f).transpose(dim0=1,dim1=2))  # # [bs, N, N]
-
-        beta = F.softmax(s, dim=-1)  # attention map
-
-        o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
-        
-        inputs = torch.squeeze(inputs, dim=-1)
-        o = torch.reshape(o, shape=[B, self.layer, N])  # [bs, h, w, C]
-        concat = torch.cat((concat, o), 1)
-
         #x = self.gamma * o + inputs
         #x = self.skip(inputs, o)
         #x = self.bn(o) + inputs
         
         #x = self.skip(inputs, concat)
-        #x = inputs + self.dropout(self.group_norm(concat))
-        x = inputs + self.group_norm(concat)
+        #x = inputs + self.dropout(self.group_norm(o))
+        #x = o #self.skip(input, o)
+        #x = input + o
+        #x = inputs + self.group_norm(concat)
         #x = inputs + concat
-
+        x = self.mlp(o)
         return x

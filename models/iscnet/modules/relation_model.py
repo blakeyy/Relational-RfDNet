@@ -11,7 +11,6 @@ from models.registers import MODULES
 from models.iscnet.modules.proposal_module import decode_scores
 
 from configs.scannet_config import ScannetConfig #param2obb
-from net_utils.ap_helper import parse_predictions
 
 @MODULES.register_module
 class RelationalProposalModule(nn.Module):

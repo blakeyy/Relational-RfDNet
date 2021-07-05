@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-07-03T02:15:48.232523/model_best.pth', '']
+weight: ['out/iscnet/2021-07-04T22:54:53.148874/model_best.pth', '']
 seed: 10
 device:
   use_gpu: True
