@@ -42,8 +42,8 @@ class RelationalProposalModule(nn.Module):
         self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
         nn.init.constant_(self.gamma, 0.0)
         
-        if self.cfg.config['model']['relation_module']['use_learned_pos_embed']:
-            self.pos_embedding = PositionEmbeddingLearned(6, geo_feature_dim)
+        #if self.cfg.config['model']['relation_module']['use_learned_pos_embed']:
+        #    self.pos_embedding = PositionEmbeddingLearned(6, geo_feature_dim)
 
         self.relation = nn.ModuleList()
         for N in range(self.Nr):
@@ -133,13 +133,14 @@ class RelationalProposalModule(nn.Module):
         # get geometric feature and feed it into PositionalEmbedding         
         geometric_feature = torch.cat([center, box_size], dim=-1) # (B, K, 6)
 
-        if not self.cfg.config['model']['relation_module']['use_learned_pos_embed']:
-            position_embedding = PositionalEmbedding(geometric_feature, dim_g=self.dim_g) # (B,K,K, dim_g)
-        else:
-            position_embedding = self.pos_embedding(geometric_feature) # 
+        #if not self.cfg.config['model']['relation_module']['use_learned_pos_embed']:
+        #    position_embedding = PositionalEmbedding(geometric_feature, dim_g=self.dim_g) # (B,K,K, dim_g)
+        #else:
+        #    position_embedding = self.pos_embedding(geometric_feature) # 
             #position_embedding = self.feature_transform_pos(proposal_features)  #
-            position_embedding = position_embedding.transpose(1, 2).contiguous() #
-        
+        #    position_embedding = position_embedding.transpose(1, 2).contiguous() #
+        position_embedding = PositionalEmbedding(geometric_feature, dim_g=self.dim_g) # (B,K,K, dim_g)
+
         #transform proposal_features from 128-dim to appearance_feature_dim 
         proposal_features = self.feature_transform1(proposal_features)  #(B,appearance_feature_dim, K)
         proposal_features = proposal_features.transpose(1, 2).contiguous() # (B, K, appearance_feature_dim)

@@ -49,7 +49,7 @@ model:
     loss: Null
     use_gt_boxsize: True
     compute_two_losses: False
-    use_learned_pos_embed: False
+    #use_learned_pos_embed: False
     n_relations: 8 #4
     appearance_feature_dim: 768 #384
     key_feature_dim: 96 
