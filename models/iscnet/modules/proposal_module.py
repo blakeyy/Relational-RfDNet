@@ -2,6 +2,7 @@
 # author: ynie
 # date: March, 2020
 # cite: VoteNet
+from sys import prefix
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -10,36 +11,36 @@ from models.registers import MODULES
 from external.pointnet2_ops_lib.pointnet2_ops.pointnet2_modules import  PointnetSAModuleVotes, PointnetFPModule
 from external.pointnet2_ops_lib.pointnet2_ops import pointnet2_utils
 
-def decode_scores(net, end_points, num_heading_bin, num_size_cluster):
+def decode_scores(net, end_points, num_heading_bin, num_size_cluster, prefix=''):
     net_transposed = net.transpose(2, 1)  # (batch_size, 1024, ..)
     batch_size = net_transposed.shape[0]
     num_proposal = net_transposed.shape[1]
 
     # objectness
     objectness_scores = net_transposed[:, :, 0:2]
-    end_points['objectness_scores'] = objectness_scores
+    end_points[f'{prefix}objectness_scores'] = objectness_scores
 
     # center
     base_xyz = end_points['aggregated_vote_xyz']  # (batch_size, num_proposal, 3)
     center = base_xyz + net_transposed[:, :, 2:5]  # (batch_size, num_proposal, 3)
-    end_points['center'] = center
+    end_points[f'{prefix}center'] = center
 
     # heading
     heading_scores = net_transposed[:, :, 5:5 + num_heading_bin]
     heading_residuals_normalized = net_transposed[:, :, 5 + num_heading_bin:5 + num_heading_bin * 2]
-    end_points['heading_scores'] = heading_scores  # Bxnum_proposalxnum_heading_bin
-    end_points['heading_residuals_normalized'] = heading_residuals_normalized  # Bxnum_proposalxnum_heading_bin (should be -1 to 1)
+    end_points[f'{prefix}heading_scores'] = heading_scores  # Bxnum_proposalxnum_heading_bin
+    end_points[f'{prefix}heading_residuals_normalized'] = heading_residuals_normalized  # Bxnum_proposalxnum_heading_bin (should be -1 to 1)
 
     # size
     size_scores = net_transposed[:, :, 5 + num_heading_bin * 2:5 + num_heading_bin * 2 + num_size_cluster]
     size_residuals_normalized = net_transposed[:, :,
                                 5 + num_heading_bin * 2 + num_size_cluster:5 + num_heading_bin * 2 + num_size_cluster * 4].view(
         [batch_size, num_proposal, num_size_cluster, 3])  # Bxnum_proposalxnum_size_clusterx3
-    end_points['size_scores'] = size_scores
-    end_points['size_residuals_normalized'] = size_residuals_normalized
+    end_points[f'{prefix}size_scores'] = size_scores
+    end_points[f'{prefix}size_residuals_normalized'] = size_residuals_normalized
 
     sem_cls_scores = net_transposed[:, :, 5 + num_heading_bin * 2 + num_size_cluster * 4:]  # Bxnum_proposalx10
-    end_points['sem_cls_scores'] = sem_cls_scores
+    end_points[f'{prefix}sem_cls_scores'] = sem_cls_scores
     return end_points
 
 
@@ -64,7 +65,7 @@ class ProposalModule(nn.Module):
         self.num_proposal = cfg.config['data']['num_target']
         self.sampling = cfg.config['data']['cluster_sampling']
         self.seed_feat_dim = 256
-        feat_dim = self.cfg.config['model']['detection']['appearance_feature_dim']
+        feat_dim = self.cfg.config['model']['self_attention']['appearance_feature_dim']
 
         '''Modules'''
         # Vote clustering
@@ -95,34 +96,45 @@ class ProposalModule(nn.Module):
          
 
         # Attention Module
-        if cfg.config['model']['detection']['use_attention']:
-            self.attention1 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention2 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention3 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention4 = MODULES.get('SelfAttention')(cfg, optim_spec)
+        if cfg.config['model']['self_attention']['before_prop_gen']:
+            self.attention = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention1 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention2 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention3 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention4 = MODULES.get('SelfAttention')(cfg, optim_spec)
 
-            self.attention5 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention6 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention7 = MODULES.get('SelfAttention')(cfg, optim_spec)
-            self.attention8 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention5 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention6 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention7 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention8 = MODULES.get('SelfAttention')(cfg, optim_spec)
 
-            #self.mlp4 = nn.Sequential(nn.Conv1d(512,256,1), \
-            #                        nn.BatchNorm1d(256), \
-            #                        nn.ReLU(), \
-            #                        nn.Conv1d(256,128,1))
+            #self.attention9 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention10 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention11 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention12 = MODULES.get('SelfAttention')(cfg, optim_spec)
 
-            #self.gn = torch.nn.GroupNorm(8, 1024)
+            #self.attention13 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention14 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention15 = MODULES.get('SelfAttention')(cfg, optim_spec)
+            #self.attention16 = MODULES.get('SelfAttention')(cfg, optim_spec)
+
+            # norm (LayerNorm per group)
+            #num_groups = 16
+            #self.attention_out = nn.Conv1d(2048, feat_dim, kernel_size=1, stride=1, groups=num_groups, bias=False)
+            #self.gn = nn.GroupNorm(num_groups=num_groups, num_channels=feat_dim)
 
         # Object proposal/detection
         # Objectness scores (2), center residual (3),
         # heading class+residual (num_heading_bin*2), size class+residual(num_size_cluster*4)
-        #self.conv1 = torch.nn.Conv1d(feat_dim,128,1) 
-        self.conv1 = torch.nn.Conv1d(1152,512,1)
-        self.conv2 = torch.nn.Conv1d(512,256,1)
-        self.conv3 = torch.nn.Conv1d(256,2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class,1)
-        self.bn1 = torch.nn.BatchNorm1d(512)
-        self.bn2 = torch.nn.BatchNorm1d(256)
+        self.conv1 = torch.nn.Conv1d(feat_dim,128,1) 
+        #self.conv1 = torch.nn.Conv1d(1152,512,1)
+        self.conv2 = torch.nn.Conv1d(128,128,1)
+        self.conv3 = torch.nn.Conv1d(128,2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class,1)
+        self.bn1 = torch.nn.BatchNorm1d(128)
+        self.bn2 = torch.nn.BatchNorm1d(128)
 
+        if cfg.config['model']['self_attention']['after_prop_gen']:
+            self.attention_after = MODULES.get('SelfAttention')(cfg, optim_spec, feature_dim=2+3+self.num_heading_bin*2+self.num_size_cluster*4+self.num_class)
 
     def forward(self, xyz, features, end_points, export_proposal_feature=False):
         """
@@ -154,7 +166,8 @@ class ProposalModule(nn.Module):
         end_points['aggregated_vote_inds'] = sample_inds # (batch_size, num_proposal,) # should be 0,1,2,...,num_proposal
 
         # --------- SELF-ATTENTION MODULE ---------
-        if self.cfg.config['model']['detection']['use_attention']:
+        if self.cfg.config['model']['self_attention']['before_prop_gen']:
+            features = self.attention([features, None])
             
             #features = self.mlp1(features)
             #features = self.attention1([features, None])
@@ -168,18 +181,31 @@ class ProposalModule(nn.Module):
             #features = self.attention8([features, None])
             #features = self.mlp3(features)
             
-            input = features
-            features = torch.cat((input, self.attention1([input, None])), 1)
-            features = torch.cat((features, self.attention2([input, None])), 1)
-            features = torch.cat((features, self.attention3([input, None])), 1)
-            features = torch.cat((features, self.attention4([input, None])), 1)
+            #input = features
+            #features = self.attention1([input, None])
+            #features = torch.cat((features, self.attention2([input, None])), 1)
+            #features = torch.cat((features, self.attention3([input, None])), 1)
+            #features = torch.cat((features, self.attention4([input, None])), 1)
 
-            features = torch.cat((features, self.attention5([input, None])), 1)
-            features = torch.cat((features, self.attention6([input, None])), 1)
-            features = torch.cat((features, self.attention7([input, None])), 1)
-            features = torch.cat((features, self.attention8([input, None])), 1)
-            #features = self.gn(features)
+            #features = torch.cat((features, self.attention5([input, None])), 1)
+            #features = torch.cat((features, self.attention6([input, None])), 1)
+            #features = torch.cat((features, self.attention7([input, None])), 1)
+            #features = torch.cat((features, self.attention8([input, None])), 1)
+
+            #features = torch.cat((features, self.attention9([input, None])), 1)
+            #features = torch.cat((features, self.attention10([input, None])), 1)
+            #features = torch.cat((features, self.attention11([input, None])), 1)
+
+            #features = torch.cat((features, self.attention12([input, None])), 1)
+            #features = torch.cat((features, self.attention13([input, None])), 1)
+            #features = torch.cat((features, self.attention14([input, None])), 1)
+            #features = torch.cat((features, self.attention15([input, None])), 1)
+            #features = torch.cat((features, self.attention16([input, None])), 1)
             
+            #features = self.attention_out(features)
+            #features = input + self.gn(features)
+
+            #features = self.gn(features)
             #features = self.mlp4(features)
             #features = self.attention1([features, None])
 
@@ -188,7 +214,14 @@ class ProposalModule(nn.Module):
         net = F.relu(self.bn2(self.conv2(net)))
         net = self.conv3(net) # (batch_size, 2+3+num_heading_bin*2+num_size_cluster*4, num_proposal)
 
-        end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster)
+        if self.cfg.config['model']['self_attention']['after_prop_gen']:
+            net = self.attention_after([net, None])
+
+        if self.cfg.config['model']['relation_module']['compute_two_losses'] and self.cfg.config['model']['relation_module']['use_relation']:
+            prefix = 'proposal_'
+        else:
+            prefix = ''
+        end_points = decode_scores(net, end_points, self.num_heading_bin, self.num_size_cluster, prefix=prefix)
 
         if export_proposal_feature:
             return end_points, features

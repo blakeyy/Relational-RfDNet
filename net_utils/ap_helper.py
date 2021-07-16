@@ -258,6 +258,10 @@ def parse_predictions(est_data, gt_data, config_dict):
             pred_mask[i, nonempty_box_inds[pick]] = 1
         eval_dict['pred_mask'] = pred_mask
         # ---------- NMS output: pred_mask in (B,K) -----------
+    #pred_mask = np.ones((bsize, K), dtype=np.uint8)
+    #pred_mask = np.zeros((bsize, K), dtype=np.uint8)
+    #pred_mask[250] = 1
+    #print("pred_mask" + str(eval_dict['pred_mask']))
     return eval_dict, {'pred_corners_3d_upright_camera': pred_corners_3d_upright_camera,
                        'sem_cls_probs': sem_cls_probs,
                        'obj_prob': obj_prob,

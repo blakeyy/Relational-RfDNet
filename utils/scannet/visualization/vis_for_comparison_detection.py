@@ -132,7 +132,7 @@ class Vis_base(Vis_Scannet):
 
         return actor
 
-    def set_render(self, centroid, only_points, mode, min_max_dist, *args, **kwargs):
+    def set_render(self, centroid, only_points, only_detection, mode, min_max_dist, *args, **kwargs):
         renderer = vtk.vtkRenderer()
         renderer.ResetCamera()
 
@@ -155,39 +155,40 @@ class Vis_base(Vis_Scannet):
         renderer.AddActor(point_actor)
 
         if not only_points:
-            '''draw shapenet models'''
-            dists = np.linalg.norm(np.array(self.center_list[mode])-centroid, axis=1)
-            if min_max_dist is None:
-                min_max_dist = [min(dists), max(dists)]
-            dists = (dists - min_max_dist[0])/(min_max_dist[1]-min_max_dist[0])
-            dists = np.clip(dists, 0, 1)
-            inst_color_ids = np.round(dists*(self.palette_inst.shape[0]-1)).astype(np.uint8)
+            if not only_detection:
+                '''draw shapenet models'''
+                dists = np.linalg.norm(np.array(self.center_list[mode])-centroid, axis=1)
+                if min_max_dist is None:
+                    min_max_dist = [min(dists), max(dists)]
+                dists = (dists - min_max_dist[0])/(min_max_dist[1]-min_max_dist[0])
+                dists = np.clip(dists, 0, 1)
+                inst_color_ids = np.round(dists*(self.palette_inst.shape[0]-1)).astype(np.uint8)
 
-            for obj, cls_id, color_id in zip(self.instance_models[mode], self.class_ids[mode], inst_color_ids):
-                object_actor = self.set_actor(self.set_mapper(obj, 'model'))
-                object_actor.GetProperty().SetColor(self.palette_inst[color_id])
-                object_actor.GetProperty().SetInterpolationToPBR()
-                renderer.AddActor(object_actor)
+                for obj, cls_id, color_id in zip(self.instance_models[mode], self.class_ids[mode], inst_color_ids):
+                    object_actor = self.set_actor(self.set_mapper(obj, 'model'))
+                    object_actor.GetProperty().SetColor(self.palette_inst[color_id])
+                    object_actor.GetProperty().SetInterpolationToPBR()
+                    renderer.AddActor(object_actor)
+            else:
+                '''draw bounding boxes'''
+                for center, vectors, cls_id in zip(self.center_list[mode], self.vector_list[mode], self.class_ids[mode]):
+                    box_line_actor = self.get_bbox_line_actor(center, vectors, [64, 64, 64], 1., 3)
+                    box_line_actor.GetProperty().SetInterpolationToPBR()
+                    renderer.AddActor(box_line_actor)
 
-            '''draw bounding boxes'''
-            for center, vectors, cls_id in zip(self.center_list[mode], self.vector_list[mode], self.class_ids[mode]):
-                box_line_actor = self.get_bbox_line_actor(center, vectors, [64, 64, 64], 1., 3)
-                box_line_actor.GetProperty().SetInterpolationToPBR()
-                renderer.AddActor(box_line_actor)
+                    # corners, faces = self.get_box_corners(center, vectors)
+                    # bbox_actor = self.set_actor(self.set_mapper(self.set_cube_prop(corners, faces, 255*self.palette_cls[cls_id]), 'box'))
+                    # bbox_actor.GetProperty().SetOpacity(0.2)
+                    # bbox_actor.GetProperty().SetInterpolationToPBR()
+                    # renderer.AddActor(bbox_actor)
 
-                # corners, faces = self.get_box_corners(center, vectors)
-                # bbox_actor = self.set_actor(self.set_mapper(self.set_cube_prop(corners, faces, 255*self.palette_cls[cls_id]), 'box'))
-                # bbox_actor.GetProperty().SetOpacity(0.2)
-                # bbox_actor.GetProperty().SetInterpolationToPBR()
-                # renderer.AddActor(bbox_actor)
+                    # draw orientations
+                    color = [[1, 0, 0], [0, 1, 0], [0., 0., 1.]]
 
-                # draw orientations
-                color = [[1, 0, 0], [0, 1, 0], [0., 0., 1.]]
-
-                for index in range(vectors.shape[0]):
-                    arrow_actor = self.set_arrow_actor(center, vectors[index])
-                    arrow_actor.GetProperty().SetColor(color[index])
-                    renderer.AddActor(arrow_actor)
+                    for index in range(vectors.shape[0]):
+                        arrow_actor = self.set_arrow_actor(center, vectors[index])
+                        arrow_actor.GetProperty().SetColor(color[index])
+                        renderer.AddActor(arrow_actor)
 
         '''light'''
         positions = [(10, 10, 10), (-10, 10, 10), (10, -10, 10), (-10, -10, 10)]
@@ -203,22 +204,22 @@ class Vis_base(Vis_Scannet):
         renderer.SetBackground(1., 1., 1.)
         return renderer, min_max_dist
 
-    def set_render_window(self, centroid, only_points, mode, min_max_dist):
+    def set_render_window(self, centroid, only_points, only_detection, mode, min_max_dist):
         render_window = vtk.vtkRenderWindow()
-        renderer, min_max_dist = self.set_render(centroid, only_points, mode, min_max_dist)
+        renderer, min_max_dist = self.set_render(centroid, only_points, only_detection, mode, min_max_dist)
         renderer.SetUseDepthPeeling(1)
         render_window.AddRenderer(renderer)
         render_window.SetSize(*np.int32((self.cam_K[:2,2]*2)))
 
         return render_window, min_max_dist
 
-    def visualize(self, centroid=np.array([0, -2.5, 2.5]), save_path = None, only_points=False, mode='pred', min_max_dist=None):
+    def visualize(self, centroid=np.array([0, -2.5, 2.5]), save_path = None, only_points=False, only_detection=False, mode='pred', min_max_dist=None):
         '''
         Visualize a 3D scene.
         '''
 
         render_window_interactor = vtk.vtkRenderWindowInteractor()
-        render_window, min_max_dist = self.set_render_window(centroid, only_points, mode, min_max_dist)
+        render_window, min_max_dist = self.set_render_window(centroid, only_points, only_detection, mode, min_max_dist)
         render_window_interactor.SetRenderWindow(render_window)
         render_window.Render()
 
@@ -236,50 +237,18 @@ class Vis_base(Vis_Scannet):
         return min_max_dist
 
 if __name__ == '__main__':
+    only_detection = False # 'True': only visualize the bounding boxes   'False': visualize bounding boxes and meshes
+    #vis_root = 'out/iscnet/2021-05-30T15:31:36.225592/visualization'
+    #scene_name = 'test_204_scene0704_00'
+
     #vis_root = 'out/iscnet/2021-05-07T13:42:24.860495_test1/visualization'  # original
     #vis_root = 'out/iscnet/2021-06-18T15:00:17.412105/visualization'  # ours
-    
     #vis_root = 'out/iscnet/2021-06-29T21:19:23.098480/visualization' # before finetune
     #vis_root = 'out/iscnet/2021-06-30T20:55:32.422757/visualization' # after finetune
-    #vis_root = 'out/iscnet/2021-07-08T10:18:17.911716/visualization' # before new
-    #vis_root = 'out/iscnet/2021-07-08T18:20:00.577533/visualization' # after new
-    #scene_name = 'test_14_scene0423_01'
-    #scene_name = 'test_10_scene0660_00'
-    #scene_name = 'test_17_scene0690_00'
-    #scene_name = 'test_3_scene0406_00'
-    #scene_name = 'test_24_scene0655_00'
-
-    #scene_name = 'test_2_scene0665_00'
-    #scene_name = 'test_0_scene0704_01'
-    scene_name = 'test_150_scene0644_00'
-    scene_name = 'test_0_scene0339_00'
     
-    ###
-    ###
-    ### final 
-    scene_name = 'test_252_scene0030_02'
-    scene_name = 'test_258_scene0414_00'
-    scene_name = 'test_306_scene0231_01'
-    scene_name = 'test_309_scene0568_02'
-    scene_name = 'test_228_scene0700_02'
-    scene_name = 'test_93_scene0222_01'
-    scene_name = 'test_75_scene0618_00'
-    scene_name = 'test_68_scene0164_03'
-    scene_name = 'test_82_scene0686_01'
-
-    scene_name = 'test_59_scene0496_00'
-    scene_name = 'test_251_scene0088_02'
-
-    vis_root = 'out/iscnet/2021-05-07T13:42:24.860495_test1/visualization'  # original
-    #vis_root = 'out/iscnet/2021-07-06T19:58:34.413839/visualization' #before
-    ###
-    ###
-    ###
-    
-    #vis_root = 'out/iscnet/2021-07-08T08:25:20.599393/visualization' #before n=8   
+    vis_root = 'out/iscnet/2021-07-06T19:58:34.413839/visualization' #before
     #vis_root = 'out/iscnet/2021-07-06T19:56:18.437634/visualization' #after
-    #vis_root = 'out/iscnet/2021-07-09T11:16:32.666147/visualization'
-    
+    scene_name = 'test_2_scene0665_00'
 
     if 'test' in scene_name:
         sample_name = scene_name
@@ -300,6 +269,7 @@ if __name__ == '__main__':
     input_point_cloud = pc_util.read_ply(os.path.join(root_path, '000000_pc.ply'))
     bbox_params = predicted_boxes['obbs']
     proposal_map = predicted_boxes['proposal_map']
+    #print(proposal_map)
 
     transform_m = np.array([[0, 0, -1], [-1, 0, 0], [0, 1, 0]])
 
@@ -307,52 +277,65 @@ if __name__ == '__main__':
     center_list = []
     vector_list = []
     class_ids = []
-    proposal_ids = []
 
     for mesh_file in glob(os.path.join(root_path, 'proposal_*.ply')):
         proposal_id, _, cls_id = \
         re.findall(r'proposal_(\d+)_target_(\d+)_class_(\d+)_mesh.ply', os.path.basename(mesh_file))[0]
         temp = list(proposal_map[:, 0]).index(int(proposal_id))
-        #if temp < bbox_params.shape[0]:
-        bbox_param = bbox_params[temp]
-        ply_reader = vtk.vtkPLYReader()
-        ply_reader.SetFileName(mesh_file)
-        ply_reader.Update()
-        # get points from object
-        polydata = ply_reader.GetOutput()
-        # read points using vtk_to_numpy
-        obj_points = vtk_to_numpy(polydata.GetPoints().GetData()).astype(np.float)
+        
+        if temp < bbox_params.shape[0]:
+            bbox_param = bbox_params[temp]
+            ply_reader = vtk.vtkPLYReader()
+            ply_reader.SetFileName(mesh_file)
+            ply_reader.Update()
+            # get points from object
+            polydata = ply_reader.GetOutput()
+            # read points using vtk_to_numpy
+            obj_points = vtk_to_numpy(polydata.GetPoints().GetData()).astype(np.float)
 
-        '''Fit obj points to bbox'''
-        center = bbox_param[:3]
-        orientation = bbox_param[6]
-        sizes = bbox_param[3:6]
+            '''Fit obj points to bbox'''
+            center = bbox_param[:3]
+            orientation = bbox_param[6]
+            sizes = bbox_param[3:6]
 
-        obj_points = obj_points - (obj_points.max(0) + obj_points.min(0))/2.
-        obj_points = obj_points.dot(transform_m.T)
-        obj_points = obj_points.dot(np.diag(1/(obj_points.max(0) - obj_points.min(0)))).dot(np.diag(sizes))
+            obj_points = obj_points - (obj_points.max(0) + obj_points.min(0))/2.
+            obj_points = obj_points.dot(transform_m.T)
+            obj_points = obj_points.dot(np.diag(1/(obj_points.max(0) - obj_points.min(0)))).dot(np.diag(sizes))
 
-        axis_rectified = np.array([[np.cos(orientation), np.sin(orientation), 0], [-np.sin(orientation), np.cos(orientation), 0], [0, 0, 1]])
-        obj_points = obj_points.dot(axis_rectified) + center
+            axis_rectified = np.array([[np.cos(orientation), np.sin(orientation), 0], [-np.sin(orientation), np.cos(orientation), 0], [0, 0, 1]])
+            obj_points = obj_points.dot(axis_rectified) + center
 
-        points_array = numpy_to_vtk(obj_points[..., :3], deep=True)
-        polydata.GetPoints().SetData(points_array)
-        ply_reader.Update()
+            points_array = numpy_to_vtk(obj_points[..., :3], deep=True)
+            polydata.GetPoints().SetData(points_array)
+            ply_reader.Update()
 
-        vectors = np.diag(sizes/2.).dot(axis_rectified)
+            vectors = np.diag(sizes/2.).dot(axis_rectified)
 
-        instance_models.append(ply_reader)
-        center_list.append(center)
-        vector_list.append(vectors)
-        class_ids.append(int(cls_id))
-        proposal_ids.append(int(proposal_id))
+            instance_models.append(ply_reader)
+            center_list.append(center)
+            vector_list.append(vectors)
+            class_ids.append(int(cls_id))
+
+    if only_detection:
+        idx = 0
+        for bbox_param in bbox_params:
+            center = bbox_param[:3]
+            orientation = bbox_param[6]
+            sizes = bbox_param[3:6]
+            cls_id = proposal_map[idx][2]
+            
+            axis_rectified = np.array([[np.cos(orientation), np.sin(orientation), 0], [-np.sin(orientation), np.cos(orientation), 0], [0, 0, 1]])
+            vectors = np.diag(sizes/2.).dot(axis_rectified)
+            
+            center_list.append(center)
+            vector_list.append(vectors)
+            class_ids.append(int(cls_id))
+            idx += 1
 
     vtk_instance_models = {'pred':instance_models}
     vtk_center_list = {'pred': center_list}
     vtk_vector_list = {'pred':vector_list}
     vtk_class_ids = {'pred': class_ids}
-    vtk_proposal_ids = {'pred': proposal_ids}
-
     # --------------------------------------------------------------------------------------------------------------
     # For GT
     # --------------------------------------------------------------------------------------------------------------
@@ -412,9 +395,9 @@ if __name__ == '__main__':
     vtk_class_ids['gt'] = class_ids
 
     scene = Vis_base(scene_points=input_point_cloud, instance_models=vtk_instance_models, center_list=vtk_center_list,
-                     vector_list=vtk_vector_list, class_ids=vtk_class_ids, proposal_ids=vtk_proposal_ids)
+                     vector_list=vtk_vector_list, class_ids=vtk_class_ids)
 
-    min_max_dist = scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'pred.png'), mode='pred')
-    scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'gt.png'), mode='gt', min_max_dist=min_max_dist)
-    scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'points.png'), only_points=True)
+    min_max_dist = scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'pred.png'), mode='pred', only_detection=only_detection)
+    scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'gt.png'), mode='gt', min_max_dist=min_max_dist, only_detection=only_detection)
+    scene.visualize(centroid=camera_center, save_path=os.path.join(save_path, 'points.png'), only_points=True, only_detection=only_detection)
     np.savetxt(os.path.join(save_path, 'camera_center'), camera_center)

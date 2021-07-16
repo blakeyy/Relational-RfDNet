@@ -1,7 +1,8 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth', ''] #['out/iscnet/2021-06-16T01:23:23.004286/model_best.pth']
+#weight: ['out/iscnet/2021-07-16T14:24:29.739401/model_best.pth', ''] # without pretrained
+weight: ['out/pretrained_models/pretrained_weight.pth', 'out/iscnet/2021-07-16T14:24:29.739401/model_best.pth', ''] # with pretrained shape completion
 seed: 10
 device:
   use_gpu: True
@@ -38,13 +39,19 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss 
-    use_attention: True
-    appearance_feature_dim: 256
-  enhance_recognition: 
+  self_attention:
+    appearance_feature_dim: 128
+    before_prop_gen: True
+    after_prop_gen: False
+  relation_module:
+    use_relation: False
     method: RelationalProposalModule
-    loss: Null 
-    n_relations: 8
-    appearance_feature_dim: 768
+    loss: Null
+    use_gt_boxsize: True
+    compute_two_losses: False
+    use_learned_pos_embed: False
+    n_relations: 8 #4
+    appearance_feature_dim: 768 #384
     key_feature_dim: 96 
     geo_feature_dim: 96
     isDuplication: False
@@ -76,11 +83,11 @@ train:
   phase: 'completion'
   use_relation: False
   freeze: ['backbone', 'voting', 'detection'] #, 'enhance_recognition']
-  batch_size: 2
+  batch_size: 8
 val:
   phase: 'completion'
   use_relation: False
-  batch_size: 2
+  batch_size: 8
   use_cls_nms: True
   use_3d_nms: True
   ap_iou_thresholds: [0.25, 0.5]

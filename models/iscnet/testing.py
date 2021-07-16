@@ -168,8 +168,12 @@ class Tester(BaseTester, Trainer):
         if inference_switch:
             return
 
+        if self.cfg.config['model']['relation_module']['compute_two_losses'] and self.cfg.config['model']['relation_module']['use_relation']:
+            prefix = 'proposal_'
+        else:
+            prefix = ''
         objectness_loss, objectness_label, objectness_mask, object_assignment = \
-            compute_objectness_loss(est_data, gt_data)
+            compute_objectness_loss(est_data, gt_data, prefix=prefix)
 
         # LABELS
         gt_center = gt_data['center_label'].cpu().numpy()  # (B,MAX_NUM_OBJ,3)

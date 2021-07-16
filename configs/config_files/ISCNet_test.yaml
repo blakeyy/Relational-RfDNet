@@ -1,7 +1,7 @@
 method: ISCNet
 resume: False
 finetune: True
-weight: ['out/iscnet/2021-06-30T01:14:37.851929/model_best.pth', '']
+weight: ['out/iscnet/2021-07-16T14:34:28.552449/model_best.pth', '']
 seed: 10
 device:
   use_gpu: True
@@ -38,13 +38,19 @@ model:
   detection:
     method: ProposalModule
     loss: DetectionLoss
-    use_attention: True
-    appearance_feature_dim: 256
-  enhance_recognition: 
+  self_attention:
+    appearance_feature_dim: 128
+    before_prop_gen: True
+    after_prop_gen: False
+  relation_module:
+    use_relation: False
     method: RelationalProposalModule
-    loss: Null 
-    n_relations: 8
-    appearance_feature_dim: 768
+    loss: Null
+    use_gt_boxsize: True
+    compute_two_losses: False
+    use_learned_pos_embed: False
+    n_relations: 8 #4
+    appearance_feature_dim: 768 #384
     key_feature_dim: 96 
     geo_feature_dim: 96
     isDuplication: False
@@ -66,7 +72,7 @@ test:
   nms_iou: 0.25
   use_old_type_nms: False
   per_class_proposal: True
-  conf_thresh: 0.5
+  conf_thresh: 0.05
   evaluate_mesh_mAP: True
 generation:
   generate_mesh: True

@@ -119,7 +119,7 @@ class ISCNet_ScanNet(ScanNet):
         size_classes = np.zeros((MAX_NUM_OBJ,))
         size_residuals = np.zeros((MAX_NUM_OBJ, 3))
         target_bboxes_mask = np.zeros((MAX_NUM_OBJ))
-        target_bboxes = np.ones((MAX_NUM_OBJ, 6)) #* 100000      # set remaining values very large that the centers of the prediction aren't nearest to them
+        target_bboxes = np.ones((MAX_NUM_OBJ, 6)) * 100000      # set remaining values very large that the centers of the prediction aren't nearest to them
         angle_classes = np.zeros((MAX_NUM_OBJ,))
         angle_residuals = np.zeros((MAX_NUM_OBJ,))
         object_instance_labels = np.zeros((MAX_NUM_OBJ, ))

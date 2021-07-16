@@ -39,7 +39,7 @@ model:
     method: ProposalModule
     loss: DetectionLoss
     use_attention: True
-    appearance_feature_dim: 64
+    appearance_feature_dim: 128
   enhance_recognition: 
     method: RelationalProposalModule
     loss: Null
