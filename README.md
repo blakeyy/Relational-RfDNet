@@ -4,7 +4,7 @@
 [Ingo Blakowski], [Trung Quoc Nguyen]<br>
 
 ### Setting up the project and basic commands
-To set up the project please refer to the README_original.md of the original RfDNet. There you can also see the basic commands to train and test the models.
+To set up the project please refer to the README_original.md of the original RfDNet in this project folder. There you can also see the basic commands to train and test the models.
 
 ---
 ### Training and testing
