@@ -32,7 +32,7 @@ class DuplicationRemovalNetwork(nn.Module):
         K = proposal_features.shape[2]
         proposal_features = proposal_features.transpose(2,1).contiguous()
         # cls_bbox: (B, K, NS, 6). NS = NC = number of classes
-        mean_size_arr = self.cfg.mean_size_arr # (NS,3)
+        mean_size_arr = self.cfg.dataset_config.mean_size_arr # (NS,3)
         pred_center = end_points['center'] # (B,K,3)
         size_residuals_normalized  = end_points['size_residuals_normalized'] # # (B,K,NS,3)
         mean_size_arr_expanded = torch.from_numpy(mean_size_arr.astype(np.float32)).cuda().unsqueeze(0).unsqueeze(0) # (1,1,num_size_cluster,3)
@@ -42,7 +42,7 @@ class DuplicationRemovalNetwork(nn.Module):
         cls_bbox = cls_bbox.view(-1,self.num_class, 6) # (B*K,NS,6)
 
         # prob:  [B,K, NS]
-        sem_cls_scores = end_points['sem_cls_scores'].view(-1,self.num_class) # (B*K,NS)
+        sem_cls_scores = end_points['sem_cls_scores'].reshape(-1,self.num_class) # (B*K,NS)
         prob = F.softmax(sem_cls_scores, dim=-1) # [B*K,NS]
         
 
@@ -63,7 +63,7 @@ class DuplicationRemovalNetwork(nn.Module):
 
         nms_rank_embedding = RankEmbedding(sorted_prob.size()[1],self.appearance_feature_dim) # [K,appearance_feature_dim]
         nms_rank = self.nms_rank_fc(nms_rank_embedding) # [K,d_f]
-        nms_rank = nms_rank.unsqueez(0).repeat(B,1,1) # (B,K,d_f)
+        nms_rank = nms_rank.unsqueeze(0).repeat(B,1,1) # (B,K,d_f)
 
         roi_feat_embedding = self.feat_embedding_fc(sorted_features) # [B,K,d_f]
         nms_embedding_feat = nms_rank + roi_feat_embedding # [B,K,d_f]

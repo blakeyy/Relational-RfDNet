@@ -351,7 +351,7 @@ class ISCNet(BaseNetwork):
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':
 
             #---------DUPLICATE REMOVAL NETWORK ---------
-            if cfg.config['data']['use_duplicate_removal_network']:
+            if self.cfg.config['data']['use_duplicate_removal_network']:
                 nms_scores, sorted_labels, sorted_cls_bboxes = self.duplicate_removal(proposal_features, end_points)
                 BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'duplicate_removal')
             #---------------------------------------------
