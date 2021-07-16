@@ -8,6 +8,8 @@ import torch.nn as nn
 from external.pyTorchChamferDistance.chamfer_distance import ChamferDistance
 from models.registers import LOSSES
 from net_utils.nn_distance import nn_distance, huber_loss
+from net_utils.array_tool import tonumpy
+from net_utils.bbox_tools import bbox_iou
 
 chamfer_func = ChamferDistance()
 
@@ -411,3 +413,32 @@ class BoxNetDetectionLoss(BaseLoss):
                 'size_cls_loss': size_cls_loss.item(),
                 'size_reg_loss': size_reg_loss.item(),
                 'obj_acc': obj_acc.item()}
+@LOSSES.register_module
+class RelationNetworksLoss(nn.Module):
+    def __init__(self):
+        super(RelationNetworksLoss, self).__init__()
+
+    def forward(self, gt_bboxes, gt_labels, nms_scores, sorted_labels, sorted_cls_bboxes):
+        if nms_scores is None:
+            return [1.]
+        sorted_score, prob_argsort = torch.sort(nms_scores, descending=True)
+        sorted_cls_bboxes = sorted_cls_bboxes[prob_argsort]
+        sorted_labels = sorted_labels[prob_argsort]
+        sorted_labels = tonumpy(sorted_labels)
+        gt_labels = tonumpy(gt_labels)
+
+        nms_gt = torch.zeros_like(sorted_score)
+
+        eps = 1e-8
+
+        iou = bbox_iou(tonumpy(gt_bboxes[0]), tonumpy(sorted_cls_bboxes))
+        for gt_idx in range(len(iou)):
+            accept_iou = np.reshape(np.argwhere(iou[gt_idx] > 0.5),-1)
+            accept_label = np.reshape(np.argwhere(sorted_labels[accept_iou] == gt_labels[0][gt_idx]),-1)
+
+            if not(len(accept_label)==0):
+                nms_gt[accept_iou[accept_label[0]]] = 1.
+
+        loss = nms_gt * (sorted_score+ eps).log() + (1 - nms_gt) * (1-sorted_score + eps).log()
+        loss = -loss.mean()
+        return [loss]

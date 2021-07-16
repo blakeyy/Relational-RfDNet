@@ -7,4 +7,4 @@ from .skip_propagation import SkipPropagation
 from .relation_model import RelationalProposalModule 
 from .self_attention import SelfAttention
 
-__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationalProposalModule', 'SelfAttention']
+__all__ = ['ISCNet', 'Pointnet2Backbone', 'ProposalModule', 'VotingModule', 'ONet', 'SkipPropagation', 'RelationalProposalModule', 'SelfAttention', 'DuplicationRemovalNetwork']
