@@ -68,6 +68,10 @@ def PositionalEmbedding( f_g, dim_g=96, wave_len=1000):
     batch_size = f_g.shape[0]
     cx, cy, cz, l,w,h = torch.chunk(f_g, 6, dim=2) # (B,K,1)
 
+    l = torch.clamp(l, min=1e-5)
+    w = torch.clamp(w, min=1e-5)
+    h = torch.clamp(h, min=1e-5)
+
     delta_x = cx - cx.view(batch_size, 1, -1) #  (B,K,K)
     delta_x = torch.clamp(torch.abs(delta_x / l), min=1e-3)
     delta_x = torch.log(delta_x)
@@ -100,8 +104,12 @@ def PositionalEmbedding( f_g, dim_g=96, wave_len=1000):
     
     dim_mat = dim_mat.view(1,1, 1, 1, -1)
     position_mat = position_mat.view(size[0], size[1], size[2], 6, -1) # (B,K,K,6,1)
-    mul_mat = position_mat * dim_mat 
-
+    
+    #position_mat = 100. * position_mat 
+    #position_mat = .01 * position_mat
+    mul_mat = position_mat * dim_mat
+    #mul_mat = position_mat / dim_mat
+    
     mul_mat = mul_mat.view(size[0], size[1], size[2], -1) # (B,K,K,48)
     sin_mat = torch.sin(mul_mat)
     cos_mat = torch.cos(mul_mat)

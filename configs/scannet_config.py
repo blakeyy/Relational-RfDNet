@@ -70,11 +70,14 @@ class ScannetConfig(object):
 
     def class2size(self, pred_cls, residual):
         ''' Inverse function to size2class '''
+        #torch.from_numpy(self.cfg.dataset_config.mean_size_arr.astype(np.float32)).to('cuda')[size_class_label]
+        #return torch.from_numpy(self.cfg.eval_config['dataset_config'].mean_size_arr.astype(np.float32)).cuda()[pred_cls, :] + residual
         return self.mean_size_arr[pred_cls, :] + residual
 
     def class2size_cuda(self, pred_cls, residual):
         ''' Inverse function to size2class '''
-        mean_size_arr = torch.from_numpy(self.mean_size_arr).to(residual.device).float()
+        #mean_size_arr = torch.from_numpy(self.mean_size_arr).to(residual.device).float()
+        mean_size_arr = torch.from_numpy(self.cfg.eval_config['dataset_config'].mean_size_arr.astype(np.float32)).cuda()
         return mean_size_arr[pred_cls.view(-1), :].view(*pred_cls.size(), 3) + residual
 
     def param2obb(self, center, heading_class, heading_residual, size_class, size_residual):

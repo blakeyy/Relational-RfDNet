@@ -11,6 +11,15 @@ def hw_flatten(x):
     x_shape = x.shape
     return torch.reshape(x, [x_shape[0], -1, x_shape[-1]]) # return [BATCH, W*H, CHANNELS]
 
+class SkipParameter(nn.Module):
+    def __init__(self, init_value=0.01):
+        super(SkipParameter, self).__init__()
+        self.skip_value = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
+        nn.init.constant_(self.skip_value, init_value)
+
+    def forward(self, f_a, concat):
+        return f_a + self.skip_value * concat
+
 @MODULES.register_module    
 class SelfAttention(nn.Module):
     def __init__(self, cfg, optim_spec=None):
@@ -20,22 +29,38 @@ class SelfAttention(nn.Module):
         self.cfg = cfg
         
         '''Parameters'''
-        dim = 128
-        layer = dim//4
+        feat_dim = self.cfg.config['model']['self_attention']['appearance_feature_dim']
+        self.layer = feat_dim//4
 
         '''Modules'''
         self.gamma = nn.Parameter(torch.ones(1)) # requires_grad is True by default for Parameter
-        nn.init.constant_(self.gamma, 0.3)
+        nn.init.constant_(self.gamma, 0.0)
+        #self.skip = SkipParameter()
 
-        self.F = torch.nn.Conv2d(dim,layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.G = torch.nn.Conv2d(dim,layer, kernel_size=1, padding=0, stride=1, bias=False)
-        self.H = torch.nn.Conv2d(dim, dim, kernel_size=1, padding=0, stride=1, bias=False)
-    
+        self.F = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.G = torch.nn.Conv2d(feat_dim,self.layer, kernel_size=1, padding=0, stride=1, bias=False)
+        self.H = torch.nn.Conv2d(feat_dim, feat_dim, kernel_size=1, padding=0, stride=1, bias=False)
+
+        #self.mlp = nn.Sequential(nn.Conv1d(256,128,1), \
+        #                            nn.BatchNorm1d(128), \
+        #                            nn.ReLU(), \
+        #                            nn.Conv1d(128,64,1))
+
     def forward(self, inputs):
-        inputs = inputs.unsqueeze(-1)
-        f = self.F(inputs)
-        g = self.G(inputs)
-        h = self.H(inputs)
+        input, nms_feat = inputs
+        if nms_feat is not None:
+            feat = nms_feat
+        else:
+            feat = input
+
+        
+        #print(inputs.shape)
+        feat = feat.unsqueeze(-1)
+        f = self.F(feat)
+        g = self.G(feat)
+        h = self.H(feat)
+
+        B, C, N, _ = h.shape
 
         f = f.transpose(dim0=1,dim1=3)
         g = g.transpose(dim0=1,dim1=3)
@@ -45,10 +70,23 @@ class SelfAttention(nn.Module):
 
         beta = F.softmax(s, dim=-1)  # attention map
 
-        o = torch.matmul(beta, hw_flatten(h))   # [bs, N, N]*[bs, N, c]->[bs, N, c]
+        ##### visualize
+        #attention_map = []
+        #for i in range(beta.shape[1]):
+        #    attention_map.append("Proposal " + str(i) + ": " + str(torch.topk(beta[0][i], 10, dim=-1)))
+        #end_points['attention_map'] = attention_map
+        ######
         
-        inputs = torch.squeeze(inputs, dim=-1)
-        o = torch.reshape(o, shape=inputs.shape)  # [bs, h, w, C]
-        x = self.gamma * o + inputs
+        o = torch.matmul(beta, hw_flatten(h))   # [B, N, N]*[B, N, c]->[B, N, c]
+        o = torch.reshape(o, shape=[B, C, N])  # [B, C, N]
         
+        x = self.gamma * o + input
+        #x = self.skip(inputs, o)
+        
+        #x = self.skip(inputs, concat)
+        #x = inputs + self.dropout(self.group_norm(o))
+        #x = input + o
+        #x = inputs + self.group_norm(concat)
+        #x = inputs + concat
+        #x = self.mlp(o)
         return x

@@ -52,6 +52,9 @@ def load_scheduler(config, optimizer):
                                                            threshold=float(config['scheduler']['threshold']),
                                                            min_lr=float(config['scheduler']['min_lr']),
                                                            verbose=True)
+    #scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, 
+    #                                                milestones=config['scheduler']['milestones'],
+    #                                               gamma=float(config['scheduler']['factor']))
     return scheduler
 
 def load_bnm_scheduler(cfg, net, start_epoch):

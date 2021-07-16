@@ -1,4 +1,4 @@
-name: rfdnet
+name: rfd
 channels:
   - pytorch
   - defaults

@@ -71,7 +71,7 @@ class CheckpointIO(object):
 
         torch.save(outdict, os.path.join(self.cfg.config['log']['path'], filename))
 
-    def load(self, filename, *domain):
+    def load(self, filename, filename2, *domain):
         '''
         load a module dictionary from local file or url.
         :param filename (str): name of saved module dictionary
@@ -81,7 +81,7 @@ class CheckpointIO(object):
         if self.is_url(filename):
             return self.load_url(filename, *domain)
         else:
-            return self.load_file(filename, *domain)
+            return self.load_file(filename, filename2, *domain)
 
     def parse_checkpoint(self):
         '''
@@ -109,12 +109,12 @@ class CheckpointIO(object):
         else:
             weight_paths = self.cfg.config['weight']
 
-        for weight_path in weight_paths:
-            if not os.path.exists(weight_path):
-                self.cfg.log_string('Warning: finetune failed: the weight path %s is invalid. Begin to train from scratch.' % (weight_path))
-            else:
-                self.load(weight_path, 'net')
-                self.cfg.log_string('Weights for finetuning loaded.')
+        #for weight_path in weight_paths:
+        if not os.path.exists(weight_paths[0]):
+            self.cfg.log_string('Warning: finetune failed: the weight path %s is invalid. Begin to train from scratch.' % (weight_paths[0]))
+        else:
+            self.load(weight_paths[0], weight_paths[1], 'net')     ### weight_paths[1] needs to exist!!!
+            self.cfg.log_string('Weights for finetuning loaded.')
 
     def resume(self):
         '''
@@ -136,7 +136,7 @@ class CheckpointIO(object):
 
         self.cfg.log_string('Warning: resume failed: No checkpoint available. Begin to train from scratch.')
 
-    def load_file(self, filename, *domain):
+    def load_file(self, filename, filename2, *domain):
         '''
         load a module dictionary from file.
         :param filename: name of saved module dictionary
@@ -146,7 +146,11 @@ class CheckpointIO(object):
         if os.path.exists(filename):
             self.cfg.log_string('Loading checkpoint from %s.' % (filename))
             checkpoint = torch.load(filename)
-            scalars = self.parse_state_dict(checkpoint, *domain)
+            if os.path.exists(filename2):
+                checkpoint2 = torch.load(filename2)
+            else:
+                checkpoint2 = None
+            scalars = self.parse_state_dict(checkpoint, checkpoint2, *domain)
             return scalars
         else:
             raise FileExistsError
@@ -162,14 +166,14 @@ class CheckpointIO(object):
         scalars = self.parse_state_dict(state_dict, domain)
         return scalars
 
-    def parse_state_dict(self, checkpoint, *domain):
+    def parse_state_dict(self, checkpoint, checkpoint2, *domain):
         '''
         parse state_dict of model and return scalars
         :param checkpoint: state_dict of model
         :return:
         '''
+        print("Domain: " + str(domain))
         for key, value in self._module_dict.items():
-
             # only load specific key names.
             if domain and (key not in domain):
                 continue
@@ -180,7 +184,10 @@ class CheckpointIO(object):
                         value.load_state_dict(checkpoint[key])
                     else:
                         '''load weights module by module'''
-                        value.module.load_weight(checkpoint[key])
+                        if checkpoint2 is not None:
+                            value.module.load_weight(checkpoint[key], checkpoint2[key])
+                        else:
+                            value.module.load_weight(checkpoint[key])
                 else:
                     self._module_dict.update({key: checkpoint[key]})
             else:

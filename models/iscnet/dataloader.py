@@ -26,11 +26,11 @@ class ISCNet_ScanNet(ScanNet):
         self.num_points = cfg.config['data']['num_point']
         self.use_color = cfg.config['data']['use_color_detection'] or cfg.config['data']['use_color_completion']
         self.use_height = not cfg.config['data']['no_height']
-        self.augment = False #mode == 'train'
+        self.augment = mode == 'train' #'False' for overfitting/debugging
         self.shapenet_path = cfg.config['data']['shapenet_path']
         self.points_unpackbits = cfg.config['data']['points_unpackbits']
         self.n_points_object = cfg.config['data']['points_subsample']
-        self.points_transform = SubsamplePoints(cfg.config['data']['points_subsample'], 'test')#mode)
+        self.points_transform = SubsamplePoints(cfg.config['data']['points_subsample'], mode)
         self.phase = cfg.config[self.mode]['phase']
 
     def __getitem__(self, idx):
@@ -119,7 +119,7 @@ class ISCNet_ScanNet(ScanNet):
         size_classes = np.zeros((MAX_NUM_OBJ,))
         size_residuals = np.zeros((MAX_NUM_OBJ, 3))
         target_bboxes_mask = np.zeros((MAX_NUM_OBJ))
-        target_bboxes = np.zeros((MAX_NUM_OBJ, 6))
+        target_bboxes = np.ones((MAX_NUM_OBJ, 6)) * 100000      # set remaining values very large that the centers of the prediction aren't nearest to them
         angle_classes = np.zeros((MAX_NUM_OBJ,))
         angle_residuals = np.zeros((MAX_NUM_OBJ,))
         object_instance_labels = np.zeros((MAX_NUM_OBJ, ))
@@ -127,6 +127,8 @@ class ISCNet_ScanNet(ScanNet):
         # NOTE: set size class as semantic class. Consider use size2class.
         size_classes[0:boxes3D.shape[0]] = class_ind
         size_residuals[0:boxes3D.shape[0], :] = boxes3D[:, 3:6] - self.dataset_config.mean_size_arr[class_ind, :]
+        #for i in range(8):
+        #    print("mean_size_arr: ("+ str(i) + ")" + str(self.dataset_config.mean_size_arr[i, :])) ## INGO
         target_bboxes_mask[0:boxes3D.shape[0]] = 1
         target_bboxes[0:boxes3D.shape[0], :] = boxes3D[:,0:6]
         object_instance_labels[0:boxes3D.shape[0]] = object_instance_ids

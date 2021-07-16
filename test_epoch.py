@@ -26,6 +26,11 @@ def test_func(cfg, tester, test_loader):
     cfg.log_string('-'*100)
     for iter, data in enumerate(test_loader):
         loss, est_data = tester.test_step(data)
+        ### Visualize attention map
+        #attention_map = est_data[0]['attention_map']
+        #with open("att_map01/attention_scene_" + str(iter) + ".txt", "w") as output:
+        #    output.write('\n'.join(attention_map))
+        ###
         eval_dict = est_data[4]
         for ap_calculator in ap_calculator_list:
             ap_calculator.step(eval_dict['batch_pred_map_cls'], eval_dict['batch_gt_map_cls'])
