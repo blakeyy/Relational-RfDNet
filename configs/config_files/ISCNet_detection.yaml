@@ -28,6 +28,7 @@ data:
   completion_limit_in_train: 10
   use_cls_for_completion: False
   skip_propagate: True
+  use_duplicate_removal_network: False
 model:
   backbone:
     method: Pointnet2Backbone
@@ -54,6 +55,9 @@ model:
     key_feature_dim: 96 
     geo_feature_dim: 96
     isDuplication: False
+  duplicate_removal:
+    method: DuplicationRemovalNetwork
+    loss: Null
   skip_propagation:
     method: SkipPropagation
     loss: Null

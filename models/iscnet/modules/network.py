@@ -40,6 +40,9 @@ class ISCNet(BaseNetwork):
         if cfg.config['model']['relation_module']['use_relation']: 
             phase_names += ['relation_module']
 
+        if cfg.config['data']['use_duplicate_removal_network']:
+                phase_names += ['duplicate_removal']
+
         if (not cfg.config['model']) or (not phase_names):
             cfg.log_string('No submodule found. Please check the phase name and model definition.')
             raise ModuleNotFoundError('No submodule found. Please check the phase name and model definition.')
@@ -351,8 +354,15 @@ class ISCNet(BaseNetwork):
 
         # --------- INSTANCE COMPLETION ---------
         if self.cfg.config[self.cfg.config['mode']]['phase'] == 'completion':
+
+            #---------DUPLICATE REMOVAL NETWORK ---------
+            if self.cfg.config['data']['use_duplicate_removal_network']:
+                nms_scores, sorted_labels, sorted_cls_bboxes = self.duplicate_removal(proposal_features, end_points)
+                BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'duplicate_removal')
+            #---------------------------------------------
             # Get sample ids for training (For limited GPU RAM)
-            BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'objectness')
+            else: 
+                BATCH_PROPOSAL_IDs = self.get_proposal_id(end_points, data, 'objectness')
 
             #feat_dim = self.cfg.config['model']['detection']['appearance_feature_dim']
             if self.cfg.config['model']['relation_module']['compute_two_losses'] and self.cfg.config['model']['relation_module']['use_relation']:
@@ -433,6 +443,8 @@ class ISCNet(BaseNetwork):
 
         if mode == 'objectness' or batch_sample_ids is not None:
             objectness_probs = torch.softmax(end_points[f'{prefix}objectness_scores'], dim=2)[..., 1]
+        elif mode == 'duplicate_removal':
+            objectness_probs = end_points['duplicate_removal_scores']
 
         for batch_id in range(batch_size):
             box_mask = torch.nonzero(data['box_label_mask'][batch_id])
@@ -452,7 +464,7 @@ class ISCNet(BaseNetwork):
                                                    replacement=False)
                 elif mode == 'nn':
                     sample_ids = torch.argsort(dist1[0])[:object_limit_per_scene]
-                elif mode == 'objectness':
+                elif mode == 'objectness' or mode == 'duplicate_removal':
                     # sample_ids = torch.multinomial((objectness_probs[batch_id]>=self.cfg.eval_config['conf_thresh']).cpu().float(), num_samples=object_limit_per_scene, replacement=True)
                     objectness_sort = torch.argsort(objectness_probs[batch_id], descending=True)
                     gt_ids = np.unique(proposal_to_gt_box_w_cls[objectness_sort, 1].cpu().numpy(), return_index=True)[1]
