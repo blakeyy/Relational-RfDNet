@@ -3,6 +3,10 @@
 **Relational-RfD-Net: A Semantic Instance Reconstruction framework using Attention** <br>
 [Ingo Blakowski], [Trung Quoc Nguyen]<br>
 
+| Ground-truth          |  Prediction (RfD) | Prediction (Relational-RfD) |
+:-------------------------:|:-------------------------:|:-------------------------:
+![](out/samples/example/13gt.png)  |  ![](out/samples/example/13ori.png) |  ![](out/samples/example/13ours.png)
+
 ### Setting up the project and basic commands
 To set up the project please refer to the README_original.md of the original RfDNet in this project folder. There you can also see the basic commands to train and test the models.
 
